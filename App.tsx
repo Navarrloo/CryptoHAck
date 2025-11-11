@@ -116,6 +116,23 @@ async function fetchTopCryptos(symbols: string[]): Promise<DiscoverAsset[]> {
     }
 }
 
+async function updatePrices(currentAssets: (Omit<Asset, 'usdValue'>)[]): Promise<Asset[]> {
+    const symbolsToFetch = currentAssets.map(a => a.symbol);
+    if (symbolsToFetch.length === 0) return currentAssets.map(a => ({...a, usdValue: 0}));
+    
+    const prices = await fetchAssetPrices(symbolsToFetch);
+
+    return currentAssets.map(asset => {
+        const price = prices[asset.symbol] || asset.price || 0;
+        return {
+            ...asset,
+            price,
+            usdValue: asset.balance * price,
+        };
+    });
+};
+
+
 type Page = 'Wallet' | 'Discover' | 'Activity' | 'Settings' | 'Send' | 'Swap' | 'Buy' | 'Admin' | 'Withdraw';
 
 const App: React.FC = () => {
@@ -129,37 +146,63 @@ const App: React.FC = () => {
   const [sendableUsers, setSendableUsers] = useState<DBUser[]>([]);
   const [discoverAssets, setDiscoverAssets] = useState<DiscoverAsset[]>([]);
   const [isDiscoverLoading, setIsDiscoverLoading] = useState(false);
+  const [apiKeyMissing, setApiKeyMissing] = useState(false);
 
   const telegramUserId = useMemo(() => tg?.initDataUnsafe?.user?.id, [tg]);
 
   useEffect(() => {
+    if (!process.env.API_KEY) {
+      setApiKeyMissing(true);
+      console.warn("Gemini API Key is missing. Market data will not be available.");
+    }
     const telegramApp = window.Telegram?.WebApp;
     if (telegramApp) {
       telegramApp.ready();
       telegramApp.expand();
       setTg(telegramApp);
     } else {
-        console.log("Not in Telegram context");
-        setIsLoading(false); // No telegram context, stop loading
+        console.log("Not in Telegram context. Using mock data.");
+        const setupMockData = async () => {
+            setIsLoading(true);
+            const mockAssetsWithBalance = baseAssets.map(asset => {
+                let balance = 0;
+                if (asset.symbol === 'ETH') balance = 1.256;
+                else if (asset.symbol === 'BTC') balance = 0.051;
+                else if (asset.symbol === 'SOL') balance = 15.3;
+                else if (asset.symbol === 'USDT') balance = 2540.50;
+                else if (asset.symbol === 'USDC') balance = 1050.11;
+                else if (asset.symbol === 'BNB') balance = 2.5;
+                else if (asset.symbol === 'XRP') balance = 1234;
+                else if (asset.symbol === 'ADA') balance = 2560;
+                else if (asset.symbol === 'DOGE') balance = 10000;
+                else if (asset.symbol === 'TON') balance = 50.7;
+                return { ...asset, balance: parseFloat(balance.toFixed(4)), usdValue: 0 };
+            });
+            
+            const updatedAssets = await updatePrices(mockAssetsWithBalance);
+            setAssets(updatedAssets);
+            
+            const mockTransactions: Transaction[] = [
+                {
+                  id: 'tx1', user_id: 'mockuser', type: 'receive', assetSymbol: 'ETH',
+                  amount: 0.5, usdValue: 0.5 * (updatedAssets.find(a=>a.symbol === 'ETH')?.price || 3000),
+                  date: new Date(Date.now() - 86400000 * 2).toISOString(),
+                  from: '0x123...abc', to: 'My Wallet',
+                },
+                {
+                  id: 'tx2', user_id: 'mockuser', type: 'send', assetSymbol: 'USDT',
+                  amount: 500, usdValue: 500,
+                  date: new Date(Date.now() - 86400000 * 5).toISOString(),
+                  from: 'My Wallet', to: '0x456...def',
+                },
+            ];
+            setTransactions(mockTransactions);
+            setIsLoading(false);
+        };
+        setupMockData();
     }
   }, []);
   
-  const updatePrices = useCallback(async (currentAssets: Asset[]) => {
-      const symbolsToFetch = currentAssets.map(a => a.symbol);
-      if (symbolsToFetch.length === 0) return currentAssets;
-      
-      const prices = await fetchAssetPrices(symbolsToFetch);
-
-      return currentAssets.map(asset => {
-          const price = prices[asset.symbol] || asset.price || 0;
-          return {
-              ...asset,
-              price,
-              usdValue: asset.balance * price,
-          };
-      });
-  }, []);
-
   // Load user data from Supabase or initialize new user
   useEffect(() => {
     if (!telegramUserId) {
@@ -248,10 +291,12 @@ const App: React.FC = () => {
     };
 
     setupUser();
-  }, [telegramUserId, tg, updatePrices]);
+  }, [telegramUserId, tg]);
 
 
   const isAdmin = useMemo(() => {
+    // In mock mode, grant admin rights for testing.
+    if (!tg) return true;
     return tg?.initDataUnsafe?.user?.username?.toLowerCase() === 'navarrlo';
   }, [tg]);
   
@@ -525,6 +570,11 @@ const App: React.FC = () => {
   return (
     <div className="bg-[#0d1117] min-h-screen font-sans text-white flex justify-center items-start">
       <div className="w-full max-w-md h-screen flex flex-col relative">
+        {apiKeyMissing && (
+          <div className="bg-yellow-500/20 text-yellow-300 text-xs text-center p-2 z-30 flex-shrink-0">
+            Gemini API Key is not configured. Market data is unavailable.
+          </div>
+        )}
         <main className="flex-grow overflow-y-auto w-full flex flex-col">
             {renderContent()}
         </main>

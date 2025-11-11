@@ -59,11 +59,11 @@ const AdminPanelView: React.FC<AdminPanelViewProps> = ({ assets, onBalanceChange
 
   return (
     <div className="flex flex-col h-full p-4">
-      <header className="flex items-center mb-8">
-        <button onClick={onBack} className="p-2 rounded-full hover:bg-gray-800">
+      <header className="relative flex items-center justify-center mb-8">
+        <button onClick={onBack} className="absolute left-0 p-2 rounded-full hover:bg-gray-800">
           <ArrowLeftIcon />
         </button>
-        <h1 className="text-2xl font-bold text-center flex-grow -ml-10">Admin Panel</h1>
+        <h1 className="text-2xl font-bold">Admin Panel</h1>
       </header>
       <div className="flex-grow space-y-6">
         <div>
