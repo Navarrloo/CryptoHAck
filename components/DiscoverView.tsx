@@ -1,6 +1,6 @@
 import React from 'react';
 import type { DiscoverAsset } from '../types';
-import { BtcIcon, EthereumIcon, TetherIcon } from './Icons';
+import { BtcIcon, EthereumIcon, TetherIcon, SolanaIcon, XrpIcon, CardanoIcon, DogecoinIcon } from './Icons';
 
 // Helper to get icon based on symbol
 const getIconBySymbol = (symbol: string): React.ReactNode => {
@@ -8,6 +8,10 @@ const getIconBySymbol = (symbol: string): React.ReactNode => {
         case 'BTC': return <BtcIcon />;
         case 'ETH': return <EthereumIcon />;
         case 'USDT': return <TetherIcon />;
+        case 'SOL': return <SolanaIcon />;
+        case 'XRP': return <XrpIcon />;
+        case 'ADA': return <CardanoIcon />;
+        case 'DOGE': return <DogecoinIcon />;
         default: return <div className="w-9 h-9 rounded-full bg-gray-700 flex items-center justify-center text-white font-bold text-sm">{symbol.slice(0, 3)}</div>;
     }
 };

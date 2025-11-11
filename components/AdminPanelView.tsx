@@ -16,12 +16,38 @@ type UserWallet = {
     balance: number;
 }
 
+const AdminAssetSelector: React.FC<{
+    assets: Omit<Asset, 'balance' | 'usdValue'>[];
+    selectedSymbol: string;
+    onSelect: (symbol: string) => void;
+}> = ({ assets, selectedSymbol, onSelect }) => {
+    return (
+        <div>
+            <div className="flex gap-2 mt-1 overflow-x-auto pb-2">
+                {assets.map(asset => (
+                    <button
+                        key={asset.id}
+                        onClick={() => onSelect(asset.symbol)}
+                        className={`flex flex-col items-center justify-center gap-1 p-1 rounded-lg w-16 h-16 flex-shrink-0 border-2 transition-all duration-200 ${selectedSymbol.toUpperCase() === asset.symbol ? 'bg-blue-500/20 border-blue-500' : 'bg-gray-700/50 border-transparent hover:border-gray-600'}`}
+                    >
+                        <div className="w-7 h-7 flex items-center justify-center scale-90">
+                            {asset.icon}
+                        </div>
+                        <span className="text-xs font-semibold text-white">{asset.symbol}</span>
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+}
+
 const UserWalletsView: React.FC<{
     user: DBUser,
+    baseAssets: Omit<Asset, 'balance' | 'usdValue'>[],
     priceMap: Map<string, number>;
     onAction: (userId: string, symbol: string, amount: number, operation: 'add' | 'subtract') => Promise<boolean>,
     onRefresh: () => void;
-}> = ({ user, priceMap, onAction, onRefresh }) => {
+}> = ({ user, baseAssets, priceMap, onAction, onRefresh }) => {
     const [wallets, setWallets] = useState<UserWallet[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [symbol, setSymbol] = useState('');
@@ -45,6 +71,12 @@ const UserWalletsView: React.FC<{
     }, [fetchWallets]);
 
     useEffect(() => {
+        if(baseAssets.length > 0 && !symbol) {
+            setSymbol(baseAssets[0].symbol);
+        }
+    }, [baseAssets, symbol]);
+
+    useEffect(() => {
         const upperSymbol = symbol.toUpperCase();
         const price = priceMap.get(upperSymbol) || 0;
         const value = parseFloat(usdAmount);
@@ -62,7 +94,7 @@ const UserWalletsView: React.FC<{
         const price = priceMap.get(upperSymbol) || 0;
 
         if (!upperSymbol) {
-            alert("Please enter an asset symbol.");
+            alert("Please select an asset symbol.");
             return;
         }
         if (isNaN(value) || value <= 0) {
@@ -80,7 +112,6 @@ const UserWalletsView: React.FC<{
         const success = await onAction(user.id, upperSymbol, cryptoAmount, operation);
         if (success) {
             setUsdAmount('');
-            setSymbol('');
             setCryptoAmountPreview('');
             await fetchWallets(); // Refresh balances
             onRefresh(); 
@@ -95,15 +126,8 @@ const UserWalletsView: React.FC<{
     return (
         <div className="border-t border-gray-700/60 p-4 space-y-4">
             <div className="space-y-3 p-3 bg-gray-900/50 rounded-md">
-                <div className="grid grid-cols-2 gap-3">
-                    <input
-                      type="text"
-                      placeholder="Symbol (e.g. BTC)"
-                      value={symbol}
-                      onChange={(e) => setSymbol(e.target.value)}
-                      disabled={isProcessing}
-                      className="bg-gray-800 border border-gray-700 rounded-md p-2 w-full text-white focus:ring-blue-500 focus:border-blue-500 transition uppercase"
-                    />
+                <AdminAssetSelector assets={baseAssets} selectedSymbol={symbol} onSelect={setSymbol} />
+                <div className="grid grid-cols-1 gap-3">
                     <input
                       type="number"
                       placeholder="Amount (USD)"
@@ -201,6 +225,7 @@ const AdminPanelView: React.FC<AdminPanelViewProps> = ({ baseAssets, assetsWithP
                     <UserWalletsView 
                         key={refreshKey}
                         user={user} 
+                        baseAssets={baseAssets}
                         priceMap={priceMap}
                         onAction={handleBalanceChangeWithFeedback} 
                         onRefresh={() => setRefreshKey(k => k + 1)}

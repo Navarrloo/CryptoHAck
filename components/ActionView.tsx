@@ -11,6 +11,32 @@ interface ActionViewProps {
   onWithdraw?: (symbol: string, amount: number) => Promise<boolean>;
 }
 
+const AssetSelector: React.FC<{
+    assets: Asset[];
+    selectedSymbol: string;
+    onSelect: (symbol: string) => void;
+}> = ({ assets, selectedSymbol, onSelect }) => {
+    return (
+        <div>
+            <label className="text-sm text-gray-400">Asset</label>
+            <div className="flex gap-3 mt-2 overflow-x-auto pb-2">
+                {assets.map(asset => (
+                    <button
+                        key={asset.id}
+                        onClick={() => onSelect(asset.symbol)}
+                        className={`flex flex-col items-center justify-center gap-2 p-2 rounded-lg w-20 h-20 flex-shrink-0 border-2 transition-all duration-200 ${selectedSymbol === asset.symbol ? 'bg-blue-500/20 border-blue-500' : 'bg-gray-800 border-transparent hover:border-gray-600'}`}
+                    >
+                        <div className="w-8 h-8 flex items-center justify-center">
+                            {asset.icon}
+                        </div>
+                        <span className="text-xs font-semibold text-white">{asset.symbol}</span>
+                    </button>
+                ))}
+            </div>
+        </div>
+    );
+}
+
 interface SendViewContentProps {
     assets: Asset[];
     allUsers: DBUser[];
@@ -64,15 +90,7 @@ const SendViewContent: React.FC<SendViewContentProps> = ({ assets, allUsers, onS
                      allUsers.map(user => <option key={user.id} value={user.id}>{user.username || user.first_name}</option>)}
                 </select>
             </div>
-             <div>
-                <label className="text-sm text-gray-400">Asset</label>
-                <select value={selectedAsset} onChange={(e) => setSelectedAsset(e.target.value)} className="w-full mt-1 bg-gray-800 border border-gray-700 rounded-lg p-3 text-white focus:ring-blue-500 focus:border-blue-500">
-                    {assets.map(asset => <option key={asset.id} value={asset.symbol}>{asset.name}</option>)}
-                </select>
-                 <div className="text-xs text-gray-400 mt-1 text-right">
-                    Balance: {currentBalance.toLocaleString()} {selectedAsset}
-                </div>
-            </div>
+             <AssetSelector assets={assets} selectedSymbol={selectedAsset} onSelect={setSelectedAsset} />
             <div>
                 <label className="text-sm text-gray-400">Amount</label>
                 <input 
@@ -81,11 +99,14 @@ const SendViewContent: React.FC<SendViewContentProps> = ({ assets, allUsers, onS
                     onChange={e => setAmount(e.target.value)}
                     placeholder="0.0" 
                     className="w-full mt-1 bg-gray-800 border border-gray-700 rounded-lg p-3 text-white focus:ring-blue-500 focus:border-blue-500" />
+                 <div className="text-xs text-gray-400 mt-1 text-right">
+                    Balance: {currentBalance.toLocaleString()} {selectedAsset}
+                </div>
             </div>
             <button 
                 onClick={handleSendClick}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors disabled:bg-blue-800/50 disabled:cursor-not-allowed"
-                disabled={isSending || !recipientId || !amount || allUsers.length === 0}
+                disabled={isSending || !recipientId || !amount || allUsers.length === 0 || !selectedAsset}
             >
                 {isSending ? 'Sending...' : 'Send'}
             </button>
@@ -106,11 +127,17 @@ const WithdrawViewContent: React.FC<WithdrawViewContentProps> = ({ assets, onWit
     const [contactInfo, setContactInfo] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
     const [isSubmitted, setIsSubmitted] = useState(false);
+    
+    useEffect(() => {
+        if (assets.length > 0 && !assetSymbol) {
+            setAssetSymbol(assets[0].symbol);
+        }
+    }, [assets, assetSymbol]);
 
     const handleWithdrawClick = async () => {
         const numericAmount = parseFloat(amount);
         if (!assetSymbol.trim()) {
-            alert('Please enter an asset symbol (e.g., BTC).');
+            alert('Please select an asset.');
             return;
         }
         if (isNaN(numericAmount) || numericAmount <= 0) {
@@ -154,15 +181,7 @@ const WithdrawViewContent: React.FC<WithdrawViewContentProps> = ({ assets, onWit
 
     return (
         <div className="w-full max-w-sm mx-auto space-y-4">
-             <div>
-                <label className="text-sm text-gray-400">Asset Symbol</label>
-                <input 
-                    type="text" 
-                    value={assetSymbol}
-                    onChange={e => setAssetSymbol(e.target.value)}
-                    placeholder="e.g. BTC" 
-                    className="w-full mt-1 bg-gray-800 border border-gray-700 rounded-lg p-3 text-white focus:ring-blue-500 focus:border-blue-500 uppercase" />
-            </div>
+             <AssetSelector assets={assets} selectedSymbol={assetSymbol} onSelect={setAssetSymbol} />
             <div>
                 <label className="text-sm text-gray-400">Amount</label>
                 <input 

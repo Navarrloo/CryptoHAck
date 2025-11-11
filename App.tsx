@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import BottomNav from './components/BottomNav';
 import type { Asset, Transaction, DBUser, DiscoverAsset, Page } from './types';
-import { BtcIcon, EthereumIcon, TetherIcon, WalletIcon, CompassIcon, ClockIcon, SettingsIcon } from './components/Icons';
+import { BtcIcon, EthereumIcon, TetherIcon, WalletIcon, CompassIcon, ClockIcon, SettingsIcon, SolanaIcon, XrpIcon, CardanoIcon, DogecoinIcon } from './components/Icons';
 import WalletView from './components/WalletView';
 import ActionView from './components/ActionView';
 import SettingsView from './components/SettingsView';
@@ -29,6 +29,10 @@ const baseAssets: Omit<Asset, 'balance' | 'usdValue'>[] = [
   { id: 'btc', name: 'Bitcoin', symbol: 'BTC', icon: <BtcIcon /> },
   { id: 'eth', name: 'Ethereum', symbol: 'ETH', icon: <EthereumIcon /> },
   { id: 'usdt', name: 'Tether', symbol: 'USDT', icon: <TetherIcon />, price: 1.0 },
+  { id: 'sol', name: 'Solana', symbol: 'SOL', icon: <SolanaIcon /> },
+  { id: 'xrp', name: 'XRP', symbol: 'XRP', icon: <XrpIcon /> },
+  { id: 'ada', name: 'Cardano', symbol: 'ADA', icon: <CardanoIcon /> },
+  { id: 'doge', name: 'Dogecoin', symbol: 'DOGE', icon: <DogecoinIcon /> },
 ];
 
 
@@ -36,7 +40,7 @@ async function fetchAssetPrices(symbols: string[]): Promise<Record<string, numbe
     if (!process.env.API_KEY) {
         console.warn("API_KEY is not set. Returning mock prices.");
         return {
-            'BTC': 68123.45, 'ETH': 3789.12, 'USDT': 1.0,
+            'BTC': 68123.45, 'ETH': 3789.12, 'USDT': 1.0, 'SOL': 165.43, 'XRP': 0.52, 'ADA': 0.45, 'DOGE': 0.16
         };
     }
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -81,6 +85,10 @@ async function fetchTopCryptos(symbols: string[]): Promise<DiscoverAsset[]> {
             { name: 'Bitcoin', symbol: 'BTC', price: 68123.45, priceChange24h: 1.5, marketCap: 1340000000000 },
             { name: 'Ethereum', symbol: 'ETH', price: 3789.12, priceChange24h: -0.5, marketCap: 455000000000 },
             { name: 'Tether', symbol: 'USDT', price: 1.0, priceChange24h: 0.0, marketCap: 112000000000 },
+            { name: 'Solana', symbol: 'SOL', price: 165.43, priceChange24h: 3.2, marketCap: 76000000000 },
+            { name: 'XRP', symbol: 'XRP', price: 0.52, priceChange24h: -1.1, marketCap: 28000000000 },
+            { name: 'Cardano', symbol: 'ADA', price: 0.45, priceChange24h: 0.8, marketCap: 16000000000 },
+            { name: 'Dogecoin', symbol: 'DOGE', price: 0.16, priceChange24h: 5.5, marketCap: 23000000000 },
         ];
     }
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
