@@ -4,7 +4,6 @@ export interface Asset {
   id: string;
   name: string;
   symbol: string;
-  // FIX: Cannot find namespace 'JSX'. Changed type to React.ReactNode.
   icon: React.ReactNode;
   balance: number;
   usdValue: number;
@@ -13,7 +12,6 @@ export interface Asset {
 
 export interface NavItem {
     name: string;
-    // FIX: Cannot find namespace 'JSX'. Changed type to React.ReactNode.
     icon: React.ReactNode;
 }
 

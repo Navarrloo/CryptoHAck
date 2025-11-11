@@ -20,7 +20,7 @@ const ActionsRow: React.FC<ActionsRowProps> = ({ onAction }) => {
   return (
     <div className="flex justify-around items-center py-4">
       <ActionButton icon={<ArrowUpIcon />} label="Send" onClick={() => onAction('Send')} />
-      <ActionButton icon={<WithdrawIcon />} label="Вывод" onClick={() => onAction('Withdraw')} />
+      <ActionButton icon={<WithdrawIcon />} label="Withdraw" onClick={() => onAction('Withdraw')} />
     </div>
   );
 };

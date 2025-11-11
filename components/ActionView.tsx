@@ -142,13 +142,13 @@ const WithdrawViewContent: React.FC<WithdrawViewContentProps> = ({ assets, onWit
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                 </div>
-                <h2 className="text-2xl font-bold text-white">ОТЛИЧНО!</h2>
-                <p className="text-gray-300 mt-2">Средства поступят в течении 24 часов.</p>
+                <h2 className="text-2xl font-bold text-white">Success!</h2>
+                <p className="text-gray-300 mt-2">Your funds will be processed within 24 hours.</p>
                 <button 
                     onClick={onBack}
                     className="w-full mt-8 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors"
                 >
-                    Готово
+                    Done
                 </button>
             </div>
         );
@@ -212,7 +212,7 @@ const ActionView: React.FC<ActionViewProps> = ({ title, onBack, assets, allUsers
       </header>
       <div className="flex-grow flex flex-col items-center justify-start text-center text-gray-400 pt-8">
         {title === 'Send' && allUsers && onSend && <SendViewContent assets={assets} allUsers={allUsers} onSend={onSend} />}
-        {title === 'Вывод' && onWithdraw && <WithdrawViewContent assets={assets} onWithdraw={onWithdraw} onBack={onBack} />}
+        {title === 'Withdraw' && onWithdraw && <WithdrawViewContent assets={assets} onWithdraw={onWithdraw} onBack={onBack} />}
       </div>
     </div>
   );

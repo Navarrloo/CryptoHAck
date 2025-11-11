@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { ChevronRightIcon } from './Icons';
 
@@ -54,5 +53,4 @@ const SettingsView: React.FC<SettingsViewProps> = ({ isAdmin, onNavigate, onClea
   );
 };
 
-// FIX: Removed `require` call which caused a "Cannot find name 'require'" error. The icon is already imported above.
 export default SettingsView;

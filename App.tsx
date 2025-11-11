@@ -1,17 +1,18 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import BottomNav from './components/BottomNav';
 import type { Asset, Transaction, DBUser, DiscoverAsset } from './types';
-import { BtcIcon, EthereumIcon, BnbIcon, TetherIcon, SolanaIcon, WalletIcon, CompassIcon, ClockIcon, SettingsIcon, XrpIcon, AdaIcon, DogeIcon, UsdcIcon, TonIcon } from './components/Icons';
+import { BtcIcon, EthereumIcon, TetherIcon, WalletIcon, CompassIcon, ClockIcon, SettingsIcon } from './components/Icons';
 import WalletView from './components/WalletView';
 import ActionView from './components/ActionView';
 import SettingsView from './components/SettingsView';
 import AdminPanelView from './components/AdminPanelView';
 import ActivityView from './components/ActivityView';
 import DiscoverView from './components/DiscoverView';
+import Toast from './components/Toast';
 import { GoogleGenAI, Type } from "@google/genai";
 import { supabase } from './lib/supabase';
 
-// FIX: Add type definition for window.Telegram to fix TypeScript errors.
+// Add type definition for window.Telegram to fix TypeScript errors.
 declare global {
   interface Window {
     Telegram?: {
@@ -23,14 +24,7 @@ declare global {
 const baseAssets: Omit<Asset, 'balance' | 'usdValue'>[] = [
   { id: 'btc', name: 'Bitcoin', symbol: 'BTC', icon: <BtcIcon /> },
   { id: 'eth', name: 'Ethereum', symbol: 'ETH', icon: <EthereumIcon /> },
-  { id: 'sol', name: 'Solana', symbol: 'SOL', icon: <SolanaIcon /> },
   { id: 'usdt', name: 'Tether', symbol: 'USDT', icon: <TetherIcon />, price: 1.0 },
-  { id: 'usdc', name: 'USD Coin', symbol: 'USDC', icon: <UsdcIcon />, price: 1.0 },
-  { id: 'bnb', name: 'BNB', symbol: 'BNB', icon: <BnbIcon /> },
-  { id: 'xrp', name: 'XRP', symbol: 'XRP', icon: <XrpIcon /> },
-  { id: 'ada', name: 'Cardano', symbol: 'ADA', icon: <AdaIcon /> },
-  { id: 'doge', name: 'Dogecoin', symbol: 'DOGE', icon: <DogeIcon /> },
-  { id: 'ton', name: 'Toncoin', symbol: 'TON', icon: <TonIcon /> },
 ];
 
 
@@ -38,19 +32,18 @@ async function fetchAssetPrices(symbols: string[]): Promise<Record<string, numbe
     if (!process.env.API_KEY) {
         console.warn("API_KEY is not set. Returning mock prices.");
         return {
-            'BTC': 68123.45, 'ETH': 3789.12, 'SOL': 165.78, 'USDT': 1.0, 'USDC': 1.0,
-            'BNB': 610.50, 'XRP': 0.52, 'ADA': 0.45, 'DOGE': 0.16, 'TON': 7.80
+            'BTC': 68123.45, 'ETH': 3789.12, 'USDT': 1.0,
         };
     }
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
     const properties: Record<string, { type: Type, description: string }> = {};
-    symbols.filter(s => !['USDT', 'USDC'].includes(s)).forEach(symbol => { // Don't ask for stablecoin price
+    symbols.filter(s => !['USDT'].includes(s)).forEach(symbol => { // Don't ask for stablecoin price
         properties[symbol] = { type: Type.NUMBER, description: `The current price of ${symbol} in USD.` };
     });
 
     if (Object.keys(properties).length === 0) {
-        return { USDT: 1.0, USDC: 1.0 };
+        return { USDT: 1.0 };
     }
 
     try {
@@ -67,14 +60,12 @@ async function fetchAssetPrices(symbols: string[]): Promise<Record<string, numbe
         });
         const result = JSON.parse(response.text);
         if (symbols.includes('USDT')) result['USDT'] = 1.0; // Add stablecoin price back
-        if (symbols.includes('USDC')) result['USDC'] = 1.0;
         return result;
     } catch (error) {
         console.error("Error fetching asset prices from Gemini API:", error);
         // Fallback for stablecoins if API fails
         const fallbackPrices: Record<string, number> = {};
         if (symbols.includes('USDT')) fallbackPrices['USDT'] = 1.0;
-        if (symbols.includes('USDC')) fallbackPrices['USDC'] = 1.0;
         return fallbackPrices;
     }
 }
@@ -85,9 +76,7 @@ async function fetchTopCryptos(symbols: string[]): Promise<DiscoverAsset[]> {
         return [
             { name: 'Bitcoin', symbol: 'BTC', price: 68123.45, priceChange24h: 1.5, marketCap: 1340000000000 },
             { name: 'Ethereum', symbol: 'ETH', price: 3789.12, priceChange24h: -0.5, marketCap: 455000000000 },
-            { name: 'Solana', symbol: 'SOL', price: 165.78, priceChange24h: 3.2, marketCap: 76000000000 },
             { name: 'Tether', symbol: 'USDT', price: 1.0, priceChange24h: 0.0, marketCap: 112000000000 },
-            { name: 'BNB', symbol: 'BNB', price: 610.50, priceChange24h: 2.1, marketCap: 90000000000 },
         ];
     }
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -150,6 +139,13 @@ const App: React.FC = () => {
   const [sendableUsers, setSendableUsers] = useState<DBUser[]>([]);
   const [discoverAssets, setDiscoverAssets] = useState<DiscoverAsset[]>([]);
   const [isDiscoverLoading, setIsDiscoverLoading] = useState(false);
+  const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
+  const [balanceChange, setBalanceChange] = useState({ value: 3120.55, percentage: 5.2 });
+
+
+  const showToast = (message: string, type: 'success' | 'error') => {
+    setToast({ message, type });
+  };
 
   const telegramUserId = useMemo(() => tg?.initDataUnsafe?.user?.id, [tg]);
 
@@ -170,14 +166,7 @@ const App: React.FC = () => {
                 let balance = 0;
                 if (asset.symbol === 'ETH') balance = 1.256;
                 else if (asset.symbol === 'BTC') balance = 0.051;
-                else if (asset.symbol === 'SOL') balance = 15.3;
                 else if (asset.symbol === 'USDT') balance = 2540.50;
-                else if (asset.symbol === 'USDC') balance = 1050.11;
-                else if (asset.symbol === 'BNB') balance = 2.5;
-                else if (asset.symbol === 'XRP') balance = 1234;
-                else if (asset.symbol === 'ADA') balance = 2560;
-                else if (asset.symbol === 'DOGE') balance = 10000;
-                else if (asset.symbol === 'TON') balance = 50.7;
                 return { ...asset, balance: parseFloat(balance.toFixed(4)), usdValue: 0 };
             });
             
@@ -287,7 +276,6 @@ const App: React.FC = () => {
             if (!process.env.API_KEY && isNewUserWithNoBalance) {
                 if (baseAsset.symbol === 'ETH') balance = 1.256;
                 else if (baseAsset.symbol === 'BTC') balance = 0.051;
-                else if (baseAsset.symbol === 'SOL') balance = 15.3;
                 else if (baseAsset.symbol === 'USDT') balance = 2540.50;
             }
 
@@ -315,6 +303,16 @@ const App: React.FC = () => {
   }, [tg]);
   
   const totalBalance = useMemo(() => assets.reduce((acc, asset) => acc + (asset.usdValue || 0), 0), [assets]);
+  
+  useEffect(() => {
+    if (totalBalance > 0 && !isLoading) {
+        // Simulate a 24h change between -10% and +10%
+        const percentage = (Math.random() * 20) - 10;
+        const value = totalBalance * (percentage / 100);
+        setBalanceChange({ value, percentage });
+    }
+  }, [totalBalance, isLoading]);
+
 
   const handleNavigation = useCallback(async (targetPage: Page) => {
     if (targetPage === 'Discover' && discoverAssets.length === 0) {
@@ -394,8 +392,7 @@ const App: React.FC = () => {
 
   const handleSend = useCallback(async (recipientId: string, symbol: string, amount: number) => {
     if (!currentUser) {
-        console.error("No current user to send from.");
-        alert("Error: Not logged in.");
+        showToast("Error: Not logged in.", 'error');
         return;
     }
 
@@ -408,7 +405,7 @@ const App: React.FC = () => {
     
     if (fetchError || wallets?.length !== 2) {
         console.error("Error fetching wallets for transfer", fetchError);
-        alert("Error processing transaction. Please try again.");
+        showToast("Error processing transaction. Please try again.", 'error');
         return;
     }
 
@@ -416,13 +413,13 @@ const App: React.FC = () => {
     const recipientWallet = wallets.find(w => w.user_id === recipientId);
 
     if (!senderWallet || !recipientWallet) {
-        alert("Could not find wallets for transaction.");
+        showToast("Could not find wallets for transaction.", 'error');
         return;
     }
     
     // 2. Check if sender has enough balance
     if (senderWallet.balance < amount) {
-        alert("Insufficient funds.");
+        showToast("Insufficient funds.", 'error');
         return;
     }
 
@@ -438,7 +435,7 @@ const App: React.FC = () => {
 
     if (senderUpdateError || recipientUpdateError) {
         console.error("Error updating balances:", { senderUpdateError, recipientUpdateError });
-        alert("Transaction failed.");
+        showToast("Transaction failed.", 'error');
         return;
     }
 
@@ -471,20 +468,19 @@ const App: React.FC = () => {
     const loggedTx = { ...newTransaction, id: new Date().toISOString(), date: new Date().toISOString() };
     setTransactions(prev => [loggedTx, ...prev]);
     
-    alert(`Successfully sent ${amount} ${symbol} to ${recipientUser?.username || 'user'}.`);
+    showToast(`Successfully sent ${amount} ${symbol} to ${recipientUser?.username || 'user'}.`, 'success');
     handleNavigation('Wallet');
   }, [currentUser, assets, sendableUsers, handleNavigation]);
 
   const handleWithdraw = useCallback(async (symbol: string, amount: number): Promise<boolean> => {
     if (!currentUser) {
-        console.error("No current user for withdrawal.");
-        alert("Error: Not logged in.");
+        showToast("Error: Not logged in.", 'error');
         return false;
     }
 
     const assetToWithdraw = assets.find(a => a.symbol === symbol);
     if (!assetToWithdraw || assetToWithdraw.balance < amount) {
-        alert("Insufficient funds.");
+        showToast("Insufficient funds.", 'error');
         return false;
     }
 
@@ -497,7 +493,7 @@ const App: React.FC = () => {
 
     if (updateError) {
         console.error("Error updating balance for withdrawal:", updateError);
-        alert("Withdrawal failed. Please try again.");
+        showToast("Withdrawal failed. Please try again.", 'error');
         return false;
     }
     
@@ -525,7 +521,7 @@ const App: React.FC = () => {
 
     const loggedTx = { ...newTransaction, id: new Date().toISOString(), date: new Date().toISOString() };
     setTransactions(prev => [loggedTx, ...prev]);
-    
+    showToast('Withdrawal request submitted successfully.', 'success');
     return true;
   }, [currentUser, assets]);
 
@@ -560,7 +556,7 @@ const App: React.FC = () => {
 
     switch (page) {
       case 'Wallet':
-        return <WalletView assets={assets} totalBalance={totalBalance} user={tg?.initDataUnsafe?.user} onAction={handleNavigation} />;
+        return <WalletView assets={assets} totalBalance={totalBalance} user={tg?.initDataUnsafe?.user} onAction={handleNavigation} balanceChange={balanceChange} />;
       case 'Discover':
         return <DiscoverView assets={discoverAssets} isLoading={isDiscoverLoading} />;
       case 'Activity':
@@ -568,25 +564,26 @@ const App: React.FC = () => {
       case 'Settings':
         return <SettingsView isAdmin={isAdmin} onNavigate={handleNavigation} onClearData={handleClearData} />;
       case 'Admin':
-        return <AdminPanelView baseAssets={baseAssets} onBalanceChange={handleBalanceChange} onBack={() => handleNavigation('Settings')} allUsers={allUsersForAdmin} />;
+        return <AdminPanelView baseAssets={baseAssets} assetsWithPrices={assets} onBalanceChange={handleBalanceChange} onBack={() => handleNavigation('Settings')} allUsers={allUsersForAdmin} />;
       case 'Send':
         return <ActionView title="Send" onBack={() => handleNavigation('Wallet')} assets={assets} allUsers={sendableUsers} onSend={handleSend} />;
       case 'Withdraw':
-        return <ActionView title="Вывод" onBack={() => handleNavigation('Wallet')} assets={assets} onWithdraw={handleWithdraw} />;
+        return <ActionView title="Withdraw" onBack={() => handleNavigation('Wallet')} assets={assets} onWithdraw={handleWithdraw} />;
       default:
-        return <WalletView assets={assets} totalBalance={totalBalance} user={tg?.initDataUnsafe?.user} onAction={handleNavigation} />;
+        return <WalletView assets={assets} totalBalance={totalBalance} user={tg?.initDataUnsafe?.user} onAction={handleNavigation} balanceChange={balanceChange} />;
     }
   };
 
   return (
     <div className="bg-[#0d1117] min-h-screen font-sans text-white flex justify-center items-start">
-      <div className="w-full max-w-md h-screen flex flex-col relative">
-        <main className="flex-grow overflow-y-auto w-full flex flex-col">
+      <div className="w-full max-w-md h-screen flex flex-col">
+        {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+        <main className="flex-1 w-full relative overflow-hidden">
             {renderContent()}
         </main>
         
         {mainPages.includes(page) && (
-            <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto z-20 mt-auto">
+            <div className="flex-shrink-0 z-20">
                 <BottomNav items={navItems} activeTab={page} setActiveTab={(tab) => handleNavigation(tab as Page)} />
             </div>
         )}

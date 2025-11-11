@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Asset, DBUser } from '../types';
 import { ArrowLeftIcon, ChevronDownIcon } from './Icons';
 import { supabase } from '../lib/supabase';
 
 interface AdminPanelViewProps {
   baseAssets: Omit<Asset, 'balance' | 'usdValue'>[];
+  assetsWithPrices: Asset[];
   onBalanceChange: (targetUserId: string, symbol: string, amount: number, operation: 'add' | 'subtract') => void;
   onBack: () => void;
   allUsers: DBUser[];
@@ -18,12 +19,14 @@ type UserWallet = {
 const UserWalletsView: React.FC<{
     user: DBUser,
     baseAssets: Omit<Asset, 'balance' | 'usdValue'>[],
+    priceMap: Map<string, number>;
     onAction: (userId: string, symbol: string, amount: number, operation: 'add' | 'subtract') => void,
     onRefresh: () => void;
-}> = ({ user, baseAssets, onAction, onRefresh }) => {
+}> = ({ user, baseAssets, priceMap, onAction, onRefresh }) => {
     const [wallets, setWallets] = useState<UserWallet[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [amounts, setAmounts] = useState<Record<string, string>>({});
+    const [cryptoAmountPreview, setCryptoAmountPreview] = useState<Record<string, string>>({});
     const [processing, setProcessing] = useState<Record<string, boolean>>({});
 
     const fetchWallets = useCallback(async () => {
@@ -43,21 +46,39 @@ const UserWalletsView: React.FC<{
 
     const handleAmountChange = (symbol: string, value: string) => {
         setAmounts(prev => ({...prev, [symbol]: value}));
+
+        const price = priceMap.get(symbol) || 0;
+        const usdValue = parseFloat(value);
+        if (price > 0 && !isNaN(usdValue) && usdValue > 0) {
+            const cryptoValue = usdValue / price;
+            setCryptoAmountPreview(prev => ({ ...prev, [symbol]: `≈ ${cryptoValue.toFixed(8)} ${symbol}` }));
+        } else {
+            setCryptoAmountPreview(prev => ({ ...prev, [symbol]: '' }));
+        }
     };
     
     const handleAction = async (symbol: string, operation: 'add' | 'subtract') => {
-        const amount = parseFloat(amounts[symbol] || '0');
-        if (isNaN(amount) || amount <= 0) {
-            alert("Please enter a valid positive amount.");
+        const usdAmount = parseFloat(amounts[symbol] || '0');
+        const price = priceMap.get(symbol) || 0;
+
+        if (isNaN(usdAmount) || usdAmount <= 0) {
+            alert("Please enter a valid positive USD amount.");
+            return;
+        }
+        if (price <= 0) {
+            alert(`Could not retrieve price for ${symbol}. Cannot perform action.`);
             return;
         }
 
+        const cryptoAmount = usdAmount / price;
+
         setProcessing(prev => ({...prev, [symbol]: true}));
-        await onAction(user.id, symbol, amount, operation);
+        await onAction(user.id, symbol, cryptoAmount, operation);
         setAmounts(prev => ({...prev, [symbol]: ''}));
+        setCryptoAmountPreview(prev => ({ ...prev, [symbol]: '' }));
         await fetchWallets(); // Refresh balances
         onRefresh(); // Refresh balances in parent component if needed for total balance etc.
-        setProcessing(false);
+        setProcessing(prev => ({...prev, [symbol]: false}));
     }
     
     if (isLoading) {
@@ -72,20 +93,32 @@ const UserWalletsView: React.FC<{
                 const isActionDisabled = !amounts[asset.symbol] || processing[asset.symbol];
 
                 return (
-                    <div key={asset.id} className="flex items-center gap-4 bg-gray-900/50 p-2 rounded-md">
+                    <div key={asset.id} className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-3 bg-gray-900/50 p-2 rounded-md">
+                        {/* Col 1: Icon */}
                         <div className="w-8 h-8">{asset.icon}</div>
-                        <div className="flex-grow">
+                        
+                        {/* Col 2: Info */}
+                        <div>
                             <p className="font-semibold text-white">{asset.symbol}</p>
                             <p className="text-xs text-gray-400">Balance: {balance.toLocaleString()}</p>
                         </div>
-                        <input
-                          type="number"
-                          placeholder="Amount"
-                          value={amounts[asset.symbol] || ''}
-                          onChange={(e) => handleAmountChange(asset.symbol, e.target.value)}
-                          disabled={processing[asset.symbol]}
-                          className="bg-gray-800 border border-gray-700 rounded-md p-2 w-24 text-right text-white focus:ring-blue-500 focus:border-blue-500 transition"
-                        />
+                    
+                        {/* Col 3: Input */}
+                        <div className="flex flex-col items-end">
+                            <input
+                              type="number"
+                              placeholder="Amount (USD)"
+                              value={amounts[asset.symbol] || ''}
+                              onChange={(e) => handleAmountChange(asset.symbol, e.target.value)}
+                              disabled={processing[asset.symbol]}
+                              className="bg-gray-800 border border-gray-700 rounded-md p-2 w-32 text-right text-white focus:ring-blue-500 focus:border-blue-500 transition"
+                            />
+                            <div className="text-xs text-blue-400 mt-1 h-4 text-right pr-1">
+                                {cryptoAmountPreview[asset.symbol]}
+                            </div>
+                        </div>
+                        
+                        {/* Col 4: Buttons */}
                         <div className="flex gap-2">
                            <button onClick={() => handleAction(asset.symbol, 'subtract')} disabled={isActionDisabled} className="w-9 h-9 flex items-center justify-center bg-red-600 hover:bg-red-700 rounded-md font-bold text-xl disabled:bg-red-800/50 disabled:cursor-not-allowed transition">-</button>
                            <button onClick={() => handleAction(asset.symbol, 'add')} disabled={isActionDisabled} className="w-9 h-9 flex items-center justify-center bg-green-600 hover:bg-green-700 rounded-md font-bold text-xl disabled:bg-green-800/50 disabled:cursor-not-allowed transition">+</button>
@@ -98,10 +131,12 @@ const UserWalletsView: React.FC<{
 }
 
 
-const AdminPanelView: React.FC<AdminPanelViewProps> = ({ baseAssets, onBalanceChange, onBack, allUsers }) => {
+const AdminPanelView: React.FC<AdminPanelViewProps> = ({ baseAssets, assetsWithPrices, onBalanceChange, onBack, allUsers }) => {
   const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
   const [message, setMessage] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
+  
+  const priceMap = useMemo(() => new Map(assetsWithPrices.map(a => [a.symbol, a.price || 0])), [assetsWithPrices]);
 
   const handleToggleUser = (userId: string) => {
     setExpandedUserId(prevId => (prevId === userId ? null : userId));
@@ -112,7 +147,7 @@ const AdminPanelView: React.FC<AdminPanelViewProps> = ({ baseAssets, onBalanceCh
       const targetUser = allUsers.find(u => u.id === targetUserId);
       const actionText = operation === 'add' ? 'added' : 'subtracted';
       const preposition = operation === 'add' ? 'to' : 'from';
-      setMessage(`Successfully ${actionText} ${amount} ${symbol} ${preposition} ${targetUser?.username || 'user'}.`);
+      setMessage(`Successfully ${actionText} ${amount.toFixed(8)} ${symbol} ${preposition} ${targetUser?.username || 'user'}.`);
       setTimeout(() => setMessage(''), 3000);
   }
 
@@ -148,13 +183,16 @@ const AdminPanelView: React.FC<AdminPanelViewProps> = ({ baseAssets, onBalanceCh
                            <p className="text-xs text-gray-400">ID: {user.telegram_id}</p>
                         </div>
                     </div>
-                    <ChevronDownIcon />
+                    <div className={`transform transition-transform ${expandedUserId === user.id ? 'rotate-180' : ''}`}>
+                        <ChevronDownIcon />
+                    </div>
                 </div>
                 {expandedUserId === user.id && (
                     <UserWalletsView 
                         key={refreshKey}
                         user={user} 
                         baseAssets={baseAssets} 
+                        priceMap={priceMap}
                         onAction={handleBalanceChangeWithFeedback} 
                         onRefresh={() => setRefreshKey(k => k + 1)}
                     />

@@ -1,19 +1,13 @@
 import React from 'react';
 import type { DiscoverAsset } from '../types';
-import { BtcIcon, EthereumIcon, BnbIcon, TetherIcon, SolanaIcon, UsdcIcon, XrpIcon, AdaIcon, DogeIcon } from './Icons';
+import { BtcIcon, EthereumIcon, TetherIcon } from './Icons';
 
 // Helper to get icon based on symbol
 const getIconBySymbol = (symbol: string): React.ReactNode => {
     switch (symbol.toUpperCase()) {
         case 'BTC': return <BtcIcon />;
         case 'ETH': return <EthereumIcon />;
-        case 'SOL': return <SolanaIcon />;
-        case 'BNB': return <BnbIcon />;
         case 'USDT': return <TetherIcon />;
-        case 'USDC': return <UsdcIcon />;
-        case 'XRP': return <XrpIcon />;
-        case 'ADA': return <AdaIcon />;
-        case 'DOGE': return <DogeIcon />;
         default: return <div className="w-9 h-9 rounded-full bg-gray-700 flex items-center justify-center text-white font-bold text-sm">{symbol.slice(0, 3)}</div>;
     }
 };
