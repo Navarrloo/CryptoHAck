@@ -153,9 +153,9 @@ const App: React.FC = () => {
   const [balanceChange, setBalanceChange] = useState({ value: 3120.55, percentage: 5.2 });
 
 
-  const showToast = (message: string, type: 'success' | 'error') => {
+  const showToast = useCallback((message: string, type: 'success' | 'error') => {
     setToast({ message, type });
-  };
+  }, []);
 
   const telegramUserId = useMemo(() => tg?.initDataUnsafe?.user?.id, [tg]);
 
@@ -225,7 +225,7 @@ const App: React.FC = () => {
             console.log("Creating new user...");
             const { data: newUserArr, error: insertError } = await supabase.from('users').insert({
                 telegram_id: telegramUserId,
-                username: tg.initDataUnsafe.user.username,
+                username: tg.initDataUnsafe.user.username?.toLowerCase(),
                 first_name: tg.initDataUnsafe.user.first_name,
             }).select();
 
@@ -394,15 +394,56 @@ const App: React.FC = () => {
         setTransactions(prev => [{ ...newTransaction, id: new Date().toISOString(), date: new Date().toISOString() }, ...prev]);
     }
     return true;
-  }, [assets, currentUser, allUsersForAdmin]);
+  }, [assets, currentUser, allUsersForAdmin, showToast]);
 
-  const handleSend = useCallback(async (recipientId: string, symbol: string, amount: number) => {
+  const handleSend = useCallback(async (recipientIdentifier: string, symbol: string, amount: number) => {
     if (!currentUser) {
         showToast("Error: Not logged in.", 'error');
         return;
     }
 
-    // 1. Get sender and receiver wallets
+    let recipientId = '';
+    let recipientUser: DBUser | { id: string, username?: string, first_name?: string } | undefined;
+
+    if (isAdmin) {
+        recipientId = recipientIdentifier;
+        recipientUser = sendableUsers.find(u => u.id === recipientId);
+    } else {
+        const username = recipientIdentifier.trim().toLowerCase();
+        if (!username) {
+            showToast("Please enter a recipient username.", 'error');
+            return;
+        }
+        if (username === currentUser.username?.toLowerCase()) {
+            showToast("You cannot send funds to yourself.", "error");
+            return;
+        }
+        
+        const { data: foundUser, error: findError } = await supabase
+            .from('users')
+            .select('id, username, first_name')
+            .eq('username', username)
+            .single();
+        
+        if (findError || !foundUser) {
+            console.error('Error finding recipient by username:', findError);
+            showToast(`User "${recipientIdentifier}" not found.`, 'error');
+            return;
+        }
+        recipientId = foundUser.id;
+        recipientUser = foundUser;
+    }
+
+    if (!recipientId || !recipientUser) {
+        showToast('Recipient not found.', 'error');
+        return;
+    }
+
+    if (recipientId === currentUser.id) {
+        showToast("You cannot send funds to yourself.", 'error');
+        return;
+    }
+
     const { data: wallets, error: fetchError } = await supabase
         .from('wallets')
         .select('user_id, balance')
@@ -423,13 +464,11 @@ const App: React.FC = () => {
         return;
     }
     
-    // 2. Check if sender has enough balance
     if (senderWallet.balance < amount) {
         showToast("Insufficient funds.", 'error');
         return;
     }
 
-    // 3. Perform the transfer
     const newSenderBalance = senderWallet.balance - amount;
     const newRecipientBalance = recipientWallet.balance + amount;
 
@@ -441,19 +480,16 @@ const App: React.FC = () => {
 
     if (senderUpdateError || recipientUpdateError) {
         console.error("Error updating balances:", { senderUpdateError, recipientUpdateError });
-        // NOTE: In a real app, you'd need a proper transaction to rollback the first update if the second fails.
         showToast("Transaction failed.", 'error');
         return;
     }
 
-    // 4. Log transactions for both sender and receiver
-    const recipientUser = sendableUsers.find(u => u.id === recipientId);
     const assetPrice = assets.find(a => a.symbol === symbol)?.price || 0;
     const fromUser = currentUser.username || currentUser.first_name || 'user';
     const toUser = recipientUser?.username || recipientUser?.first_name || 'user';
     
     const sendTransaction: Omit<Transaction, 'id' | 'date'> = {
-        user_id: currentUser.id, // The sender is the one initiating
+        user_id: currentUser.id,
         type: 'send',
         asset_symbol: symbol,
         amount: amount,
@@ -477,8 +513,6 @@ const App: React.FC = () => {
     const { error: receiveTxError } = await supabase.from('transactions').insert(receiveTransaction);
     if (receiveTxError) console.error("Error logging receive transaction", receiveTxError);
 
-
-    // 5. Update local state for sender
     setAssets(currentAssets => {
         return currentAssets.map(asset => {
             if (asset.symbol === symbol) {
@@ -492,7 +526,7 @@ const App: React.FC = () => {
     
     showToast(`Successfully sent ${amount} ${symbol} to ${toUser}.`, 'success');
     handleNavigation('Wallet');
-  }, [currentUser, assets, sendableUsers, handleNavigation]);
+  }, [currentUser, assets, sendableUsers, handleNavigation, isAdmin, showToast]);
 
   const handleWithdraw = useCallback(async (symbol: string, amount: number): Promise<boolean> => {
     if (!currentUser) {
@@ -549,7 +583,7 @@ const App: React.FC = () => {
     setTransactions(prev => [loggedTx, ...prev]);
     showToast('Withdrawal request submitted successfully.', 'success');
     return true;
-  }, [currentUser, assets]);
+  }, [currentUser, assets, showToast]);
 
   const handleClearData = useCallback(async () => {
     if (window.confirm("Are you sure you want to clear all wallet data? This action cannot be undone.")) {
@@ -592,7 +626,7 @@ const App: React.FC = () => {
       case 'Admin':
         return <AdminPanelView baseAssets={baseAssets} assetsWithPrices={assets} onBalanceChange={handleBalanceChange} onBack={() => handleNavigation('Settings')} allUsers={allUsersForAdmin} />;
       case 'Send':
-        return <ActionView title="Send" onBack={() => handleNavigation('Wallet')} assets={assets} allUsers={sendableUsers} onSend={handleSend} />;
+        return <ActionView title="Send" onBack={() => handleNavigation('Wallet')} assets={assets} allUsers={sendableUsers} onSend={handleSend} isAdmin={isAdmin} />;
       case 'Withdraw':
         return <ActionView title="Withdraw" onBack={() => handleNavigation('Wallet')} assets={assets} onWithdraw={handleWithdraw} />;
       case 'GeneralSettings':

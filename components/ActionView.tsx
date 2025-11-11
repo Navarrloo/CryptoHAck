@@ -7,8 +7,9 @@ interface ActionViewProps {
   onBack: () => void;
   assets: Asset[];
   allUsers?: DBUser[];
-  onSend?: (recipientId: string, symbol: string, amount: number) => Promise<void>;
+  onSend?: (recipientIdentifier: string, symbol: string, amount: number) => Promise<void>;
   onWithdraw?: (symbol: string, amount: number) => Promise<boolean>;
+  isAdmin?: boolean;
 }
 
 const AssetSelector: React.FC<{
@@ -40,12 +41,13 @@ const AssetSelector: React.FC<{
 interface SendViewContentProps {
     assets: Asset[];
     allUsers: DBUser[];
-    onSend: (recipientId: string, symbol: string, amount: number) => Promise<void>;
+    onSend: (recipientIdentifier: string, symbol: string, amount: number) => Promise<void>;
+    isAdmin: boolean;
 }
 
-const SendViewContent: React.FC<SendViewContentProps> = ({ assets, allUsers, onSend }) => {
+const SendViewContent: React.FC<SendViewContentProps> = ({ assets, allUsers, onSend, isAdmin }) => {
     const [selectedAsset, setSelectedAsset] = useState('');
-    const [recipientId, setRecipientId] = useState('');
+    const [recipientIdentifier, setRecipientIdentifier] = useState('');
     const [amount, setAmount] = useState('');
     const [isSending, setIsSending] = useState(false);
 
@@ -53,15 +55,15 @@ const SendViewContent: React.FC<SendViewContentProps> = ({ assets, allUsers, onS
         if (assets.length > 0 && !selectedAsset) {
             setSelectedAsset(assets[0].symbol);
         }
-        if (allUsers.length > 0 && !recipientId) {
-            setRecipientId(allUsers[0].id);
+        if (isAdmin && allUsers.length > 0 && !recipientIdentifier) {
+            setRecipientIdentifier(allUsers[0].id);
         }
-    }, [assets, allUsers, selectedAsset, recipientId]);
+    }, [assets, allUsers, selectedAsset, recipientIdentifier, isAdmin]);
     
     const handleSendClick = async () => {
         const numericAmount = parseFloat(amount);
-        if (!recipientId) {
-            alert('Please select a recipient.');
+        if (!recipientIdentifier) {
+            alert(isAdmin ? 'Please select a recipient.' : 'Please enter a recipient username.');
             return;
         }
         if (isNaN(numericAmount) || numericAmount <= 0) {
@@ -70,7 +72,7 @@ const SendViewContent: React.FC<SendViewContentProps> = ({ assets, allUsers, onS
         }
         
         setIsSending(true);
-        await onSend(recipientId, selectedAsset, numericAmount);
+        await onSend(recipientIdentifier, selectedAsset, numericAmount);
         setIsSending(false);
     };
 
@@ -78,18 +80,35 @@ const SendViewContent: React.FC<SendViewContentProps> = ({ assets, allUsers, onS
 
     return (
         <div className="w-full max-w-sm mx-auto space-y-4">
-            <div>
-                <label className="text-sm text-gray-400">Recipient</label>
-                <select 
-                    value={recipientId} 
-                    onChange={(e) => setRecipientId(e.target.value)} 
-                    className="w-full mt-1 bg-gray-800 border border-gray-700 rounded-lg p-3 text-white focus:ring-blue-500 focus:border-blue-500"
-                    disabled={allUsers.length === 0}
-                >
-                    {allUsers.length === 0 ? <option>No other users found</option> :
-                     allUsers.map(user => <option key={user.id} value={user.id}>{user.username || user.first_name}</option>)}
-                </select>
-            </div>
+            {isAdmin ? (
+                <div>
+                    <label className="text-sm text-gray-400">Recipient</label>
+                    <select 
+                        value={recipientIdentifier} 
+                        onChange={(e) => setRecipientIdentifier(e.target.value)} 
+                        className="w-full mt-1 bg-gray-800 border border-gray-700 rounded-lg p-3 text-white focus:ring-blue-500 focus:border-blue-500"
+                        disabled={allUsers.length === 0}
+                    >
+                        {allUsers.length === 0 ? <option>No other users found</option> :
+                         allUsers.map(user => <option key={user.id} value={user.id}>{user.username || user.first_name}</option>)}
+                    </select>
+                </div>
+            ) : (
+                 <div>
+                    <label className="text-sm text-gray-400">Recipient Username</label>
+                    <div className="relative mt-1">
+                         <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">
+                           @
+                         </span>
+                        <input 
+                            type="text" 
+                            value={recipientIdentifier}
+                            onChange={e => setRecipientIdentifier(e.target.value.toLowerCase())}
+                            placeholder="username" 
+                            className="w-full bg-gray-800 border border-gray-700 rounded-lg p-3 pl-8 text-white focus:ring-blue-500 focus:border-blue-500" />
+                    </div>
+                </div>
+            )}
              <AssetSelector assets={assets} selectedSymbol={selectedAsset} onSelect={setSelectedAsset} />
             <div>
                 <label className="text-sm text-gray-400">Amount</label>
@@ -106,7 +125,7 @@ const SendViewContent: React.FC<SendViewContentProps> = ({ assets, allUsers, onS
             <button 
                 onClick={handleSendClick}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors disabled:bg-blue-800/50 disabled:cursor-not-allowed"
-                disabled={isSending || !recipientId || !amount || allUsers.length === 0 || !selectedAsset}
+                disabled={isSending || !recipientIdentifier || !amount || (isAdmin && allUsers.length === 0) || !selectedAsset}
             >
                 {isSending ? 'Sending...' : 'Send'}
             </button>
@@ -221,7 +240,7 @@ const WithdrawViewContent: React.FC<WithdrawViewContentProps> = ({ assets, onWit
     );
 };
 
-const ActionView: React.FC<ActionViewProps> = ({ title, onBack, assets, allUsers, onSend, onWithdraw }) => {
+const ActionView: React.FC<ActionViewProps> = ({ title, onBack, assets, allUsers, onSend, onWithdraw, isAdmin = false }) => {
   return (
     <div className="flex flex-col h-full p-4">
       <header className="relative flex items-center justify-center mb-8">
@@ -231,7 +250,7 @@ const ActionView: React.FC<ActionViewProps> = ({ title, onBack, assets, allUsers
         <h1 className="text-2xl font-bold">{title}</h1>
       </header>
       <div className="flex-grow flex flex-col items-center justify-start text-center text-gray-400 pt-8">
-        {title === 'Send' && allUsers && onSend && <SendViewContent assets={assets} allUsers={allUsers} onSend={onSend} />}
+        {title === 'Send' && allUsers && onSend && <SendViewContent assets={assets} allUsers={allUsers} onSend={onSend} isAdmin={isAdmin} />}
         {title === 'Withdraw' && onWithdraw && <WithdrawViewContent assets={assets} onWithdraw={onWithdraw} onBack={onBack} />}
       </div>
     </div>
