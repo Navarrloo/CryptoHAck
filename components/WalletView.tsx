@@ -10,7 +10,7 @@ interface WalletViewProps {
     totalBalance: number;
     user?: any;
     // FIX: Changed 'Receive' to 'Withdraw' to match the actions passed by ActionsRow and to be compatible with the Page type in App.tsx.
-    onAction: (action: 'Send' | 'Withdraw' | 'Swap' | 'Buy') => void;
+    onAction: (action: 'Send' | 'Withdraw') => void;
 }
 
 const WalletView: React.FC<WalletViewProps> = ({ assets, totalBalance, user, onAction }) => {

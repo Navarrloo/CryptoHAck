@@ -1,131 +1,166 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import type { Asset, DBUser } from '../types';
-import { ArrowLeftIcon } from './Icons';
+import { ArrowLeftIcon, ChevronDownIcon } from './Icons';
+import { supabase } from '../lib/supabase';
 
 interface AdminPanelViewProps {
-  assets: Asset[];
+  baseAssets: Omit<Asset, 'balance' | 'usdValue'>[];
   onBalanceChange: (targetUserId: string, symbol: string, amount: number, operation: 'add' | 'subtract') => void;
   onBack: () => void;
-  currentUser: DBUser | null;
   allUsers: DBUser[];
 }
 
-const AdminPanelView: React.FC<AdminPanelViewProps> = ({ assets, onBalanceChange, onBack, currentUser, allUsers }) => {
-  const [selectedAsset, setSelectedAsset] = useState('');
-  const [selectedUserId, setSelectedUserId] = useState('');
-  const [amount, setAmount] = useState('');
-  const [message, setMessage] = useState('');
-  
-  useEffect(() => {
-    // Set default asset
-    if (assets.length > 0 && !selectedAsset) {
-      const defaultAsset = assets.find(a => a.symbol === 'USDT') || assets[0];
-      setSelectedAsset(defaultAsset.symbol);
-    }
-  }, [assets, selectedAsset]);
+type UserWallet = {
+    asset_symbol: string;
+    balance: number;
+}
 
-  useEffect(() => {
-    // Set default user from the prop
-    if (!selectedUserId && allUsers.length > 0) {
-        if (currentUser && allUsers.find(u => u.id === currentUser.id)) {
-            setSelectedUserId(currentUser.id);
+const UserWalletsView: React.FC<{
+    user: DBUser,
+    baseAssets: Omit<Asset, 'balance' | 'usdValue'>[],
+    onAction: (userId: string, symbol: string, amount: number, operation: 'add' | 'subtract') => void,
+    onRefresh: () => void;
+}> = ({ user, baseAssets, onAction, onRefresh }) => {
+    const [wallets, setWallets] = useState<UserWallet[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [amounts, setAmounts] = useState<Record<string, string>>({});
+    const [processing, setProcessing] = useState<Record<string, boolean>>({});
+
+    const fetchWallets = useCallback(async () => {
+        setIsLoading(true);
+        const { data, error } = await supabase.from('wallets').select('asset_symbol, balance').eq('user_id', user.id);
+        if (error) {
+            console.error(`Error fetching wallets for ${user.id}:`, error);
         } else {
-            setSelectedUserId(allUsers[0].id);
+            setWallets(data || []);
         }
-    }
-  }, [allUsers, currentUser, selectedUserId]);
+        setIsLoading(false);
+    }, [user.id]);
 
+    useEffect(() => {
+        fetchWallets();
+    }, [fetchWallets]);
 
-  const handleAction = (operation: 'add' | 'subtract') => {
-    const numericAmount = parseFloat(amount);
-    if (isNaN(numericAmount) || numericAmount <= 0) {
-      setMessage('Please enter a valid positive amount.');
-      setTimeout(() => setMessage(''), 3000);
-      return;
-    }
-    if (!selectedUserId) {
-      setMessage('Please select a user.');
-      setTimeout(() => setMessage(''), 3000);
-      return;
+    const handleAmountChange = (symbol: string, value: string) => {
+        setAmounts(prev => ({...prev, [symbol]: value}));
+    };
+    
+    const handleAction = async (symbol: string, operation: 'add' | 'subtract') => {
+        const amount = parseFloat(amounts[symbol] || '0');
+        if (isNaN(amount) || amount <= 0) {
+            alert("Please enter a valid positive amount.");
+            return;
+        }
+
+        setProcessing(prev => ({...prev, [symbol]: true}));
+        await onAction(user.id, symbol, amount, operation);
+        setAmounts(prev => ({...prev, [symbol]: ''}));
+        await fetchWallets(); // Refresh balances
+        onRefresh(); // Refresh balances in parent component if needed for total balance etc.
+        setProcessing(false);
     }
     
-    onBalanceChange(selectedUserId, selectedAsset, numericAmount, operation);
-    
-    const targetUser = allUsers.find(u => u.id === selectedUserId);
-    setMessage(`Successfully ${operation === 'add' ? 'added' : 'subtracted'} ${numericAmount} ${selectedAsset} ${operation === 'add' ? 'to' : 'from'} ${targetUser?.username || 'user'}.`);
-    setAmount('');
-    setTimeout(() => setMessage(''), 3000);
+    if (isLoading) {
+        return <div className="p-4 text-center text-gray-400">Loading balances...</div>
+    }
+
+    return (
+        <div className="border-t border-gray-700/60 p-4 space-y-3">
+            {baseAssets.map(asset => {
+                const wallet = wallets.find(w => w.asset_symbol === asset.symbol);
+                const balance = wallet?.balance || 0;
+                const isActionDisabled = !amounts[asset.symbol] || processing[asset.symbol];
+
+                return (
+                    <div key={asset.id} className="flex items-center gap-4 bg-gray-900/50 p-2 rounded-md">
+                        <div className="w-8 h-8">{asset.icon}</div>
+                        <div className="flex-grow">
+                            <p className="font-semibold text-white">{asset.symbol}</p>
+                            <p className="text-xs text-gray-400">Balance: {balance.toLocaleString()}</p>
+                        </div>
+                        <input
+                          type="number"
+                          placeholder="Amount"
+                          value={amounts[asset.symbol] || ''}
+                          onChange={(e) => handleAmountChange(asset.symbol, e.target.value)}
+                          disabled={processing[asset.symbol]}
+                          className="bg-gray-800 border border-gray-700 rounded-md p-2 w-24 text-right text-white focus:ring-blue-500 focus:border-blue-500 transition"
+                        />
+                        <div className="flex gap-2">
+                           <button onClick={() => handleAction(asset.symbol, 'subtract')} disabled={isActionDisabled} className="w-9 h-9 flex items-center justify-center bg-red-600 hover:bg-red-700 rounded-md font-bold text-xl disabled:bg-red-800/50 disabled:cursor-not-allowed transition">-</button>
+                           <button onClick={() => handleAction(asset.symbol, 'add')} disabled={isActionDisabled} className="w-9 h-9 flex items-center justify-center bg-green-600 hover:bg-green-700 rounded-md font-bold text-xl disabled:bg-green-800/50 disabled:cursor-not-allowed transition">+</button>
+                        </div>
+                    </div>
+                )
+            })}
+        </div>
+    )
+}
+
+
+const AdminPanelView: React.FC<AdminPanelViewProps> = ({ baseAssets, onBalanceChange, onBack, allUsers }) => {
+  const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
+  const [message, setMessage] = useState('');
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const handleToggleUser = (userId: string) => {
+    setExpandedUserId(prevId => (prevId === userId ? null : userId));
   };
+
+  const handleBalanceChangeWithFeedback = async (targetUserId: string, symbol: string, amount: number, operation: 'add' | 'subtract') => {
+      onBalanceChange(targetUserId, symbol, amount, operation);
+      const targetUser = allUsers.find(u => u.id === targetUserId);
+      const actionText = operation === 'add' ? 'added' : 'subtracted';
+      const preposition = operation === 'add' ? 'to' : 'from';
+      setMessage(`Successfully ${actionText} ${amount} ${symbol} ${preposition} ${targetUser?.username || 'user'}.`);
+      setTimeout(() => setMessage(''), 3000);
+  }
 
   return (
     <div className="flex flex-col h-full p-4">
-      <div className="relative text-center mb-8">
-        <button onClick={onBack} className="absolute left-0 top-1/2 -translate-y-1/2 p-2 rounded-full hover:bg-gray-800 transition-colors">
+      <header className="relative flex items-center justify-center mb-8">
+        <button onClick={onBack} className="absolute left-0 p-2 rounded-full hover:bg-gray-800">
           <ArrowLeftIcon />
         </button>
         <h1 className="text-2xl font-bold">Admin Panel</h1>
-      </div>
-      <div className="flex-grow space-y-6">
-        <div>
-          <label htmlFor="user-select" className="block text-sm font-medium text-gray-300 mb-2">Select User</label>
-          <select
-            id="user-select"
-            value={selectedUserId}
-            onChange={(e) => setSelectedUserId(e.target.value)}
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg p-3 text-white focus:ring-blue-500 focus:border-blue-500"
-            disabled={allUsers.length === 0}
-          >
-            {allUsers.map(user => (
-              <option key={user.id} value={user.id}>{user.username || user.first_name} ({user.telegram_id})</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="asset-select" className="block text-sm font-medium text-gray-300 mb-2">Select Asset</label>
-          <select
-            id="asset-select"
-            value={selectedAsset}
-            onChange={(e) => setSelectedAsset(e.target.value)}
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg p-3 text-white focus:ring-blue-500 focus:border-blue-500"
-            disabled={assets.length === 0}
-          >
-            {assets.map(asset => (
-              <option key={asset.id} value={asset.symbol}>{asset.name} ({asset.symbol})</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="amount-input" className="block text-sm font-medium text-gray-300 mb-2">Amount</label>
-          <input
-            id="amount-input"
-            type="number"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="e.g., 1000"
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg p-3 text-white focus:ring-blue-500 focus:border-blue-500"
-          />
-        </div>
-        <div className="flex gap-4">
-          <button
-            onClick={() => handleAction('add')}
-            className="w-full text-center p-3 bg-green-600 rounded-lg hover:bg-green-700 transition-colors font-bold disabled:bg-gray-500"
-            disabled={!selectedAsset || !selectedUserId}
-          >
-            Add Funds
-          </button>
-          <button
-            onClick={() => handleAction('subtract')}
-            className="w-full text-center p-3 bg-red-600 rounded-lg hover:bg-red-700 transition-colors font-bold disabled:bg-gray-500"
-            disabled={!selectedAsset || !selectedUserId}
-          >
-            Deduct Funds
-          </button>
-        </div>
-        {message && (
-          <div className="text-center p-3 rounded-lg bg-gray-700 text-white">
+      </header>
+
+      {message && (
+          <div className="mb-4 text-center p-3 rounded-lg bg-gray-700 text-white transition-opacity">
             {message}
           </div>
-        )}
+      )}
+
+      <div className="flex-grow overflow-y-auto space-y-3 pb-20">
+        <h2 className="text-lg font-semibold text-gray-300 px-1">Users ({allUsers.length})</h2>
+        {allUsers.map(user => (
+            <div key={user.id} className="bg-gray-800/70 rounded-lg transition-all overflow-hidden">
+                <div 
+                    onClick={() => handleToggleUser(user.id)}
+                    className="flex justify-between items-center p-4 cursor-pointer hover:bg-gray-700/50"
+                >
+                    <div className="flex items-center gap-3">
+                         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-sm font-bold">
+                            {user.username?.slice(0, 1).toUpperCase() || user.first_name?.slice(0, 1).toUpperCase()}
+                        </div>
+                        <div>
+                           <p className="font-semibold text-white">{user.username || user.first_name}</p>
+                           <p className="text-xs text-gray-400">ID: {user.telegram_id}</p>
+                        </div>
+                    </div>
+                    <ChevronDownIcon />
+                </div>
+                {expandedUserId === user.id && (
+                    <UserWalletsView 
+                        key={refreshKey}
+                        user={user} 
+                        baseAssets={baseAssets} 
+                        onAction={handleBalanceChangeWithFeedback} 
+                        onRefresh={() => setRefreshKey(k => k + 1)}
+                    />
+                )}
+            </div>
+        ))}
       </div>
     </div>
   );

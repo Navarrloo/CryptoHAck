@@ -137,7 +137,7 @@ async function updatePrices(currentAssets: (Omit<Asset, 'usdValue'>)[]): Promise
 };
 
 
-type Page = 'Wallet' | 'Discover' | 'Activity' | 'Settings' | 'Send' | 'Swap' | 'Buy' | 'Admin' | 'Withdraw';
+type Page = 'Wallet' | 'Discover' | 'Activity' | 'Settings' | 'Send' | 'Admin' | 'Withdraw';
 
 const App: React.FC = () => {
   const [page, setPage] = useState<Page>('Wallet');
@@ -568,14 +568,11 @@ const App: React.FC = () => {
       case 'Settings':
         return <SettingsView isAdmin={isAdmin} onNavigate={handleNavigation} onClearData={handleClearData} />;
       case 'Admin':
-        return <AdminPanelView assets={assets} onBalanceChange={handleBalanceChange} onBack={() => handleNavigation('Settings')} currentUser={currentUser} allUsers={allUsersForAdmin} />;
+        return <AdminPanelView baseAssets={baseAssets} onBalanceChange={handleBalanceChange} onBack={() => handleNavigation('Settings')} allUsers={allUsersForAdmin} />;
       case 'Send':
         return <ActionView title="Send" onBack={() => handleNavigation('Wallet')} assets={assets} allUsers={sendableUsers} onSend={handleSend} />;
       case 'Withdraw':
         return <ActionView title="Вывод" onBack={() => handleNavigation('Wallet')} assets={assets} onWithdraw={handleWithdraw} />;
-      case 'Swap':
-      case 'Buy':
-        return <ActionView title={page} onBack={() => handleNavigation('Wallet')} assets={assets}/>;
       default:
         return <WalletView assets={assets} totalBalance={totalBalance} user={tg?.initDataUnsafe?.user} onAction={handleNavigation} />;
     }

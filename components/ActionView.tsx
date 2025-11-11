@@ -211,14 +211,8 @@ const ActionView: React.FC<ActionViewProps> = ({ title, onBack, assets, allUsers
         <h1 className="text-2xl font-bold">{title}</h1>
       </header>
       <div className="flex-grow flex flex-col items-center justify-start text-center text-gray-400 pt-8">
-        {title === 'Send' && allUsers && onSend ? <SendViewContent assets={assets} allUsers={allUsers} onSend={onSend} /> : 
-         title === 'Вывод' && onWithdraw ? <WithdrawViewContent assets={assets} onWithdraw={onWithdraw} onBack={onBack} /> : (
-            <>
-                <div className="w-16 h-16 bg-gray-800 rounded-full mb-4"></div>
-                <h2 className="text-xl font-semibold text-white">Functionality for "{title}"</h2>
-                <p className="max-w-xs mt-2">This is a placeholder for the {title.toLowerCase()} screen. The full functionality will be implemented soon.</p>
-            </>
-        )}
+        {title === 'Send' && allUsers && onSend && <SendViewContent assets={assets} allUsers={allUsers} onSend={onSend} />}
+        {title === 'Вывод' && onWithdraw && <WithdrawViewContent assets={assets} onWithdraw={onWithdraw} onBack={onBack} />}
       </div>
     </div>
   );
