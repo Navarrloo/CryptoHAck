@@ -100,21 +100,19 @@ interface WithdrawViewContentProps {
 }
 
 const WithdrawViewContent: React.FC<WithdrawViewContentProps> = ({ assets, onWithdraw, onBack }) => {
-    const [selectedAsset, setSelectedAsset] = useState('');
+    const [assetSymbol, setAssetSymbol] = useState('');
     const [amount, setAmount] = useState('');
     const [method, setMethod] = useState<'card' | 'phone'>('card');
     const [contactInfo, setContactInfo] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
     const [isSubmitted, setIsSubmitted] = useState(false);
-    
-    useEffect(() => {
-        if (assets.length > 0 && !selectedAsset) {
-            setSelectedAsset(assets[0].symbol);
-        }
-    }, [assets, selectedAsset]);
 
     const handleWithdrawClick = async () => {
         const numericAmount = parseFloat(amount);
+        if (!assetSymbol.trim()) {
+            alert('Please enter an asset symbol (e.g., BTC).');
+            return;
+        }
         if (isNaN(numericAmount) || numericAmount <= 0) {
             alert('Please enter a valid positive amount.');
             return;
@@ -125,14 +123,14 @@ const WithdrawViewContent: React.FC<WithdrawViewContentProps> = ({ assets, onWit
         }
         
         setIsProcessing(true);
-        const success = await onWithdraw(selectedAsset, numericAmount);
+        const success = await onWithdraw(assetSymbol.toUpperCase(), numericAmount);
         if (success) {
             setIsSubmitted(true);
         }
         setIsProcessing(false);
     };
 
-    const currentBalance = assets.find(a => a.symbol === selectedAsset)?.balance || 0;
+    const currentBalance = assets.find(a => a.symbol.toUpperCase() === assetSymbol.toUpperCase())?.balance || 0;
     
     if (isSubmitted) {
         return (
@@ -157,10 +155,13 @@ const WithdrawViewContent: React.FC<WithdrawViewContentProps> = ({ assets, onWit
     return (
         <div className="w-full max-w-sm mx-auto space-y-4">
              <div>
-                <label className="text-sm text-gray-400">Asset</label>
-                <select value={selectedAsset} onChange={(e) => setSelectedAsset(e.target.value)} className="w-full mt-1 bg-gray-800 border border-gray-700 rounded-lg p-3 text-white focus:ring-blue-500 focus:border-blue-500">
-                    {assets.map(asset => <option key={asset.id} value={asset.symbol}>{asset.name}</option>)}
-                </select>
+                <label className="text-sm text-gray-400">Asset Symbol</label>
+                <input 
+                    type="text" 
+                    value={assetSymbol}
+                    onChange={e => setAssetSymbol(e.target.value)}
+                    placeholder="e.g. BTC" 
+                    className="w-full mt-1 bg-gray-800 border border-gray-700 rounded-lg p-3 text-white focus:ring-blue-500 focus:border-blue-500 uppercase" />
             </div>
             <div>
                 <label className="text-sm text-gray-400">Amount</label>
@@ -171,7 +172,7 @@ const WithdrawViewContent: React.FC<WithdrawViewContentProps> = ({ assets, onWit
                     placeholder="0.0" 
                     className="w-full mt-1 bg-gray-800 border border-gray-700 rounded-lg p-3 text-white focus:ring-blue-500 focus:border-blue-500" />
                 <div className="text-xs text-gray-400 mt-1 text-right">
-                    Balance: {currentBalance.toLocaleString()} {selectedAsset}
+                    Balance: {currentBalance.toLocaleString()} {assetSymbol.toUpperCase()}
                 </div>
             </div>
              <div>
@@ -193,7 +194,7 @@ const WithdrawViewContent: React.FC<WithdrawViewContentProps> = ({ assets, onWit
             <button 
                 onClick={handleWithdrawClick}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors disabled:bg-blue-800/50 disabled:cursor-not-allowed"
-                disabled={isProcessing || !amount || !contactInfo}
+                disabled={isProcessing || !assetSymbol || !amount || !contactInfo}
             >
                 {isProcessing ? 'Processing...' : 'Withdraw'}
             </button>

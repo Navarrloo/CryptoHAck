@@ -1,9 +1,11 @@
 import React from 'react';
 import { ChevronRightIcon } from './Icons';
 
+type Page = 'Admin' | 'GeneralSettings' | 'SecuritySettings' | 'NetworkSettings' | 'ContactsSettings';
+
 interface SettingsViewProps {
   isAdmin: boolean;
-  onNavigate: (page: 'Admin') => void;
+  onNavigate: (page: Page) => void;
   onClearData: () => void;
 }
 
@@ -21,10 +23,10 @@ const SettingsView: React.FC<SettingsViewProps> = ({ isAdmin, onNavigate, onClea
         <h1 className="text-2xl font-bold">Settings</h1>
       </header>
       <div className="space-y-3 flex-grow">
-        <SettingsItem label="General" />
-        <SettingsItem label="Security & Privacy" />
-        <SettingsItem label="Networks" />
-        <SettingsItem label="Contacts" />
+        <SettingsItem label="General" onClick={() => onNavigate('GeneralSettings')} />
+        <SettingsItem label="Security & Privacy" onClick={() => onNavigate('SecuritySettings')} />
+        <SettingsItem label="Networks" onClick={() => onNavigate('NetworkSettings')} />
+        <SettingsItem label="Contacts" onClick={() => onNavigate('ContactsSettings')} />
         {isAdmin && (
            <div className="pt-4">
              <button

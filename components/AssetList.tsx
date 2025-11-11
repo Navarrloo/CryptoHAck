@@ -12,7 +12,6 @@ const AssetList: React.FC<AssetListProps> = ({ assets }) => {
     <div className="space-y-2 px-2">
        <div className="flex justify-between items-center mb-4 px-2">
          <h2 className="text-xl font-bold">Assets</h2>
-         <a href="#" className="text-sm text-blue-400 hover:underline">Manage</a>
       </div>
       {assets.map((asset) => (
         <AssetItem key={asset.id} asset={asset} />

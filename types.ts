@@ -1,5 +1,7 @@
 import type React from 'react';
 
+export type Page = 'Wallet' | 'Discover' | 'Activity' | 'Settings' | 'Send' | 'Admin' | 'Withdraw' | 'GeneralSettings' | 'SecuritySettings' | 'NetworkSettings' | 'ContactsSettings';
+
 export interface Asset {
   id: string;
   name: string;
@@ -21,9 +23,9 @@ export interface Transaction {
   id: string;
   user_id: string;
   type: TransactionType;
-  assetSymbol: string;
+  asset_symbol: string;
   amount: number;
-  usdValue: number;
+  usd_value: number;
   date: string;
   from: string;
   to: string;

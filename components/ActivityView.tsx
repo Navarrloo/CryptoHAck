@@ -26,7 +26,7 @@ const TransactionIcon: React.FC<{ type: Transaction['type'] }> = ({ type }) => {
 }
 
 const TransactionItem: React.FC<{ transaction: Transaction, asset?: Asset }> = ({ transaction, asset }) => {
-    const { type, assetSymbol, amount, usdValue, date, to } = transaction;
+    const { type, asset_symbol, amount, usd_value, date, to } = transaction;
     const formattedDate = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(date));
     
     const titleMap = {
@@ -50,10 +50,10 @@ const TransactionItem: React.FC<{ transaction: Transaction, asset?: Asset }> = (
             </div>
             <div className="text-right">
                 <p className={`font-semibold text-white ${sign === '+' ? 'text-green-400' : 'text-red-400'}`}>
-                    {sign}{amount.toLocaleString()} {assetSymbol}
+                    {sign}{amount.toLocaleString()} {asset_symbol}
                 </p>
                 <p className="text-sm text-gray-400">
-                    {sign}${usdValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {sign}${usd_value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
             </div>
         </div>
@@ -78,7 +78,7 @@ const ActivityView: React.FC<ActivityViewProps> = ({ transactions, assets }) => 
         {transactions.length > 0 ? (
           <div className="space-y-2">
             {transactions.map(tx => (
-              <TransactionItem key={tx.id} transaction={tx} asset={assetMap.get(tx.assetSymbol)} />
+              <TransactionItem key={tx.id} transaction={tx} asset={assetMap.get(tx.asset_symbol)} />
             ))}
           </div>
         ) : (

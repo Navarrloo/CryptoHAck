@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase';
 interface AdminPanelViewProps {
   baseAssets: Omit<Asset, 'balance' | 'usdValue'>[];
   assetsWithPrices: Asset[];
-  onBalanceChange: (targetUserId: string, symbol: string, amount: number, operation: 'add' | 'subtract') => void;
+  onBalanceChange: (targetUserId: string, symbol: string, amount: number, operation: 'add' | 'subtract') => Promise<boolean>;
   onBack: () => void;
   allUsers: DBUser[];
 }
@@ -18,16 +18,16 @@ type UserWallet = {
 
 const UserWalletsView: React.FC<{
     user: DBUser,
-    baseAssets: Omit<Asset, 'balance' | 'usdValue'>[],
     priceMap: Map<string, number>;
-    onAction: (userId: string, symbol: string, amount: number, operation: 'add' | 'subtract') => void,
+    onAction: (userId: string, symbol: string, amount: number, operation: 'add' | 'subtract') => Promise<boolean>,
     onRefresh: () => void;
-}> = ({ user, baseAssets, priceMap, onAction, onRefresh }) => {
+}> = ({ user, priceMap, onAction, onRefresh }) => {
     const [wallets, setWallets] = useState<UserWallet[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [amounts, setAmounts] = useState<Record<string, string>>({});
-    const [cryptoAmountPreview, setCryptoAmountPreview] = useState<Record<string, string>>({});
-    const [processing, setProcessing] = useState<Record<string, boolean>>({});
+    const [symbol, setSymbol] = useState('');
+    const [usdAmount, setUsdAmount] = useState('');
+    const [cryptoAmountPreview, setCryptoAmountPreview] = useState('');
+    const [isProcessing, setIsProcessing] = useState(false);
 
     const fetchWallets = useCallback(async () => {
         setIsLoading(true);
@@ -44,41 +44,48 @@ const UserWalletsView: React.FC<{
         fetchWallets();
     }, [fetchWallets]);
 
-    const handleAmountChange = (symbol: string, value: string) => {
-        setAmounts(prev => ({...prev, [symbol]: value}));
-
-        const price = priceMap.get(symbol) || 0;
-        const usdValue = parseFloat(value);
-        if (price > 0 && !isNaN(usdValue) && usdValue > 0) {
-            const cryptoValue = usdValue / price;
-            setCryptoAmountPreview(prev => ({ ...prev, [symbol]: `≈ ${cryptoValue.toFixed(8)} ${symbol}` }));
+    useEffect(() => {
+        const upperSymbol = symbol.toUpperCase();
+        const price = priceMap.get(upperSymbol) || 0;
+        const value = parseFloat(usdAmount);
+        if (price > 0 && !isNaN(value) && value > 0) {
+            const cryptoValue = value / price;
+            setCryptoAmountPreview(`≈ ${cryptoValue.toFixed(8)} ${upperSymbol}`);
         } else {
-            setCryptoAmountPreview(prev => ({ ...prev, [symbol]: '' }));
+            setCryptoAmountPreview('');
         }
-    };
+    }, [usdAmount, symbol, priceMap]);
     
-    const handleAction = async (symbol: string, operation: 'add' | 'subtract') => {
-        const usdAmount = parseFloat(amounts[symbol] || '0');
-        const price = priceMap.get(symbol) || 0;
+    const handleAction = async (operation: 'add' | 'subtract') => {
+        const value = parseFloat(usdAmount);
+        const upperSymbol = symbol.toUpperCase();
+        const price = priceMap.get(upperSymbol) || 0;
 
-        if (isNaN(usdAmount) || usdAmount <= 0) {
+        if (!upperSymbol) {
+            alert("Please enter an asset symbol.");
+            return;
+        }
+        if (isNaN(value) || value <= 0) {
             alert("Please enter a valid positive USD amount.");
             return;
         }
         if (price <= 0) {
-            alert(`Could not retrieve price for ${symbol}. Cannot perform action.`);
+            alert(`Could not retrieve price for ${upperSymbol}. Cannot perform action.`);
             return;
         }
 
-        const cryptoAmount = usdAmount / price;
+        const cryptoAmount = value / price;
 
-        setProcessing(prev => ({...prev, [symbol]: true}));
-        await onAction(user.id, symbol, cryptoAmount, operation);
-        setAmounts(prev => ({...prev, [symbol]: ''}));
-        setCryptoAmountPreview(prev => ({ ...prev, [symbol]: '' }));
-        await fetchWallets(); // Refresh balances
-        onRefresh(); // Refresh balances in parent component if needed for total balance etc.
-        setProcessing(prev => ({...prev, [symbol]: false}));
+        setIsProcessing(true);
+        const success = await onAction(user.id, upperSymbol, cryptoAmount, operation);
+        if (success) {
+            setUsdAmount('');
+            setSymbol('');
+            setCryptoAmountPreview('');
+            await fetchWallets(); // Refresh balances
+            onRefresh(); 
+        }
+        setIsProcessing(false);
     }
     
     if (isLoading) {
@@ -86,46 +93,46 @@ const UserWalletsView: React.FC<{
     }
 
     return (
-        <div className="border-t border-gray-700/60 p-4 space-y-3">
-            {baseAssets.map(asset => {
-                const wallet = wallets.find(w => w.asset_symbol === asset.symbol);
-                const balance = wallet?.balance || 0;
-                const isActionDisabled = !amounts[asset.symbol] || processing[asset.symbol];
-
-                return (
-                    <div key={asset.id} className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-3 bg-gray-900/50 p-2 rounded-md">
-                        {/* Col 1: Icon */}
-                        <div className="w-8 h-8">{asset.icon}</div>
-                        
-                        {/* Col 2: Info */}
-                        <div>
-                            <p className="font-semibold text-white">{asset.symbol}</p>
-                            <p className="text-xs text-gray-400">Balance: {balance.toLocaleString()}</p>
+        <div className="border-t border-gray-700/60 p-4 space-y-4">
+            <div className="space-y-3 p-3 bg-gray-900/50 rounded-md">
+                <div className="grid grid-cols-2 gap-3">
+                    <input
+                      type="text"
+                      placeholder="Symbol (e.g. BTC)"
+                      value={symbol}
+                      onChange={(e) => setSymbol(e.target.value)}
+                      disabled={isProcessing}
+                      className="bg-gray-800 border border-gray-700 rounded-md p-2 w-full text-white focus:ring-blue-500 focus:border-blue-500 transition uppercase"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Amount (USD)"
+                      value={usdAmount}
+                      onChange={(e) => setUsdAmount(e.target.value)}
+                      disabled={isProcessing}
+                      className="bg-gray-800 border border-gray-700 rounded-md p-2 w-full text-right text-white focus:ring-blue-500 focus:border-blue-500 transition"
+                    />
+                </div>
+                 <div className="text-xs text-blue-400 h-4 text-right pr-1">
+                    {cryptoAmountPreview}
+                 </div>
+                 <div className="grid grid-cols-2 gap-3">
+                    <button onClick={() => handleAction('subtract')} disabled={isProcessing || !usdAmount || !symbol} className="w-full h-9 flex items-center justify-center bg-red-600 hover:bg-red-700 rounded-md font-bold disabled:bg-red-800/50 disabled:cursor-not-allowed transition">Subtract</button>
+                    <button onClick={() => handleAction('add')} disabled={isProcessing || !usdAmount || !symbol} className="w-full h-9 flex items-center justify-center bg-green-600 hover:bg-green-700 rounded-md font-bold disabled:bg-green-800/50 disabled:cursor-not-allowed transition">Add</button>
+                 </div>
+            </div>
+            
+            <div>
+                 <h4 className="text-sm font-semibold text-gray-400 mb-2">Current Balances</h4>
+                 <div className="space-y-2">
+                    {wallets.length > 0 ? wallets.map(wallet => (
+                        <div key={wallet.asset_symbol} className="flex justify-between items-center bg-gray-900/30 p-2 rounded-md text-sm">
+                            <span className="font-mono text-gray-300">{wallet.asset_symbol}</span>
+                            <span className="font-semibold text-white">{wallet.balance.toLocaleString(undefined, { maximumFractionDigits: 8 })}</span>
                         </div>
-                    
-                        {/* Col 3: Input */}
-                        <div className="flex flex-col items-end">
-                            <input
-                              type="number"
-                              placeholder="Amount (USD)"
-                              value={amounts[asset.symbol] || ''}
-                              onChange={(e) => handleAmountChange(asset.symbol, e.target.value)}
-                              disabled={processing[asset.symbol]}
-                              className="bg-gray-800 border border-gray-700 rounded-md p-2 w-32 text-right text-white focus:ring-blue-500 focus:border-blue-500 transition"
-                            />
-                            <div className="text-xs text-blue-400 mt-1 h-4 text-right pr-1">
-                                {cryptoAmountPreview[asset.symbol]}
-                            </div>
-                        </div>
-                        
-                        {/* Col 4: Buttons */}
-                        <div className="flex gap-2">
-                           <button onClick={() => handleAction(asset.symbol, 'subtract')} disabled={isActionDisabled} className="w-9 h-9 flex items-center justify-center bg-red-600 hover:bg-red-700 rounded-md font-bold text-xl disabled:bg-red-800/50 disabled:cursor-not-allowed transition">-</button>
-                           <button onClick={() => handleAction(asset.symbol, 'add')} disabled={isActionDisabled} className="w-9 h-9 flex items-center justify-center bg-green-600 hover:bg-green-700 rounded-md font-bold text-xl disabled:bg-green-800/50 disabled:cursor-not-allowed transition">+</button>
-                        </div>
-                    </div>
-                )
-            })}
+                    )) : <p className="text-sm text-gray-500 text-center py-2">No wallets found.</p>}
+                 </div>
+            </div>
         </div>
     )
 }
@@ -142,13 +149,16 @@ const AdminPanelView: React.FC<AdminPanelViewProps> = ({ baseAssets, assetsWithP
     setExpandedUserId(prevId => (prevId === userId ? null : userId));
   };
 
-  const handleBalanceChangeWithFeedback = async (targetUserId: string, symbol: string, amount: number, operation: 'add' | 'subtract') => {
-      onBalanceChange(targetUserId, symbol, amount, operation);
-      const targetUser = allUsers.find(u => u.id === targetUserId);
-      const actionText = operation === 'add' ? 'added' : 'subtracted';
-      const preposition = operation === 'add' ? 'to' : 'from';
-      setMessage(`Successfully ${actionText} ${amount.toFixed(8)} ${symbol} ${preposition} ${targetUser?.username || 'user'}.`);
-      setTimeout(() => setMessage(''), 3000);
+  const handleBalanceChangeWithFeedback = async (targetUserId: string, symbol: string, amount: number, operation: 'add' | 'subtract'): Promise<boolean> => {
+      const success = await onBalanceChange(targetUserId, symbol, amount, operation);
+      if (success) {
+        const targetUser = allUsers.find(u => u.id === targetUserId);
+        const actionText = operation === 'add' ? 'added' : 'subtracted';
+        const preposition = operation === 'add' ? 'to' : 'from';
+        setMessage(`Successfully ${actionText} ${amount.toFixed(8)} ${symbol} ${preposition} ${targetUser?.username || 'user'}.`);
+        setTimeout(() => setMessage(''), 4000);
+      }
+      return success;
   }
 
   return (
@@ -191,7 +201,6 @@ const AdminPanelView: React.FC<AdminPanelViewProps> = ({ baseAssets, assetsWithP
                     <UserWalletsView 
                         key={refreshKey}
                         user={user} 
-                        baseAssets={baseAssets} 
                         priceMap={priceMap}
                         onAction={handleBalanceChangeWithFeedback} 
                         onRefresh={() => setRefreshKey(k => k + 1)}

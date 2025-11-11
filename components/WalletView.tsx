@@ -2,14 +2,14 @@ import React from 'react';
 import Header from './Header';
 import BalanceCard from './BalanceCard';
 import ActionsRow from './ActionsRow';
-import AssetList from './AssetList';
-import type { Asset } from '../types';
+import StorePromotion from './StorePromotion';
+import type { Asset, Page } from '../types';
 
 interface WalletViewProps {
     assets: Asset[];
     totalBalance: number;
     user?: any;
-    onAction: (action: 'Send' | 'Withdraw') => void;
+    onAction: (page: Page) => void;
     balanceChange: {
         value: number;
         percentage: number;
@@ -25,8 +25,8 @@ const WalletView: React.FC<WalletViewProps> = ({ assets, totalBalance, user, onA
                 <BalanceCard balance={totalBalance} balanceChange={balanceChange} />
                 <ActionsRow onAction={onAction} />
             </div>
-            <div className="flex-grow overflow-y-auto px-2 pb-4 z-10 min-h-0">
-                <AssetList assets={assets} />
+            <div className="flex-grow overflow-y-auto px-4 pb-4 z-10 min-h-0">
+                <StorePromotion onNavigate={() => onAction('Discover')} />
             </div>
         </div>
     );

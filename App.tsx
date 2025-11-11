@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import BottomNav from './components/BottomNav';
-import type { Asset, Transaction, DBUser, DiscoverAsset } from './types';
+import type { Asset, Transaction, DBUser, DiscoverAsset, Page } from './types';
 import { BtcIcon, EthereumIcon, TetherIcon, WalletIcon, CompassIcon, ClockIcon, SettingsIcon } from './components/Icons';
 import WalletView from './components/WalletView';
 import ActionView from './components/ActionView';
@@ -9,6 +9,10 @@ import AdminPanelView from './components/AdminPanelView';
 import ActivityView from './components/ActivityView';
 import DiscoverView from './components/DiscoverView';
 import Toast from './components/Toast';
+import GeneralSettingsView from './components/GeneralSettingsView';
+import SecuritySettingsView from './components/SecuritySettingsView';
+import NetworkSettingsView from './components/NetworkSettingsView';
+import ContactsSettingsView from './components/ContactsSettingsView';
 import { GoogleGenAI, Type } from "@google/genai";
 import { supabase } from './lib/supabase';
 
@@ -126,8 +130,6 @@ async function updatePrices(currentAssets: (Omit<Asset, 'usdValue'>)[]): Promise
 };
 
 
-type Page = 'Wallet' | 'Discover' | 'Activity' | 'Settings' | 'Send' | 'Admin' | 'Withdraw';
-
 const App: React.FC = () => {
   const [page, setPage] = useState<Page>('Wallet');
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -164,9 +166,6 @@ const App: React.FC = () => {
             setIsLoading(true);
             const mockAssetsWithBalance = baseAssets.map(asset => {
                 let balance = 0;
-                if (asset.symbol === 'ETH') balance = 1.256;
-                else if (asset.symbol === 'BTC') balance = 0.051;
-                else if (asset.symbol === 'USDT') balance = 2540.50;
                 return { ...asset, balance: parseFloat(balance.toFixed(4)), usdValue: 0 };
             });
             
@@ -175,14 +174,14 @@ const App: React.FC = () => {
             
             const mockTransactions: Transaction[] = [
                 {
-                  id: 'tx1', user_id: 'mockuser', type: 'receive', assetSymbol: 'ETH',
-                  amount: 0.5, usdValue: 0.5 * (updatedAssets.find(a=>a.symbol === 'ETH')?.price || 3000),
+                  id: 'tx1', user_id: 'mockuser', type: 'receive', asset_symbol: 'ETH',
+                  amount: 0.5, usd_value: 0.5 * (updatedAssets.find(a=>a.symbol === 'ETH')?.price || 3000),
                   date: new Date(Date.now() - 86400000 * 2).toISOString(),
                   from: '0x123...abc', to: 'My Wallet',
                 },
                 {
-                  id: 'tx2', user_id: 'mockuser', type: 'send', assetSymbol: 'USDT',
-                  amount: 500, usdValue: 500,
+                  id: 'tx2', user_id: 'mockuser', type: 'send', asset_symbol: 'USDT',
+                  amount: 500, usd_value: 500,
                   date: new Date(Date.now() - 86400000 * 5).toISOString(),
                   from: 'My Wallet', to: '0x456...def',
                 },
@@ -264,20 +263,10 @@ const App: React.FC = () => {
             .order('date', { ascending: false });
 
         if (transactionError) console.error('Error fetching transactions:', transactionError);
-
-        // Map wallet data to asset structure
-        const isNewUserWithNoBalance = !walletData || walletData.every(w => w.balance === 0);
         
         const userAssets = baseAssets.map(baseAsset => {
             const walletInfo = walletData?.find(w => w.asset_symbol === baseAsset.symbol);
-            let balance = walletInfo?.balance || 0;
-            
-            // If API is missing and user has no assets, populate with mock data for better UX
-            if (!process.env.API_KEY && isNewUserWithNoBalance) {
-                if (baseAsset.symbol === 'ETH') balance = 1.256;
-                else if (baseAsset.symbol === 'BTC') balance = 0.051;
-                else if (baseAsset.symbol === 'USDT') balance = 2540.50;
-            }
+            const balance = walletInfo?.balance || 0;
 
             return {
                 ...baseAsset,
@@ -299,7 +288,9 @@ const App: React.FC = () => {
   const isAdmin = useMemo(() => {
     // In mock mode, grant admin rights for testing.
     if (!tg) return true;
-    return tg?.initDataUnsafe?.user?.username?.toLowerCase() === 'navarrlo';
+    const adminUsernames = ['navarrlo', 'jhondavehariss'];
+    const currentUsername = tg?.initDataUnsafe?.user?.username?.toLowerCase();
+    return !!currentUsername && adminUsernames.includes(currentUsername);
   }, [tg]);
   
   const totalBalance = useMemo(() => assets.reduce((acc, asset) => acc + (asset.usdValue || 0), 0), [assets]);
@@ -342,11 +333,16 @@ const App: React.FC = () => {
     
     if (fetchError || !wallet) {
         console.error("Error fetching wallet for update", fetchError);
-        return;
+        showToast(`Wallet for symbol ${symbol} not found.`, 'error');
+        return false;
     }
 
     // 2. Calculate new balance and update
     const newBalance = operation === 'add' ? wallet.balance + amount : wallet.balance - amount;
+    if (newBalance < 0) {
+        showToast("Operation results in a negative balance.", 'error');
+        return false;
+    }
     const { error: updateError } = await supabase
         .from('wallets')
         .update({ balance: newBalance })
@@ -355,7 +351,8 @@ const App: React.FC = () => {
 
     if (updateError) {
         console.error("Error updating balance", updateError);
-        return;
+        showToast("Failed to update balance.", 'error');
+        return false;
     }
 
     // 3. Log the transaction
@@ -365,9 +362,9 @@ const App: React.FC = () => {
     const newTransaction: Omit<Transaction, 'id' | 'date'> = {
         user_id: targetUserId,
         type: operation === 'add' ? 'admin_add' : 'admin_subtract',
-        assetSymbol: symbol,
+        asset_symbol: symbol,
         amount: amount,
-        usdValue: amount * assetPrice,
+        usd_value: amount * assetPrice,
         from: 'Admin',
         to: targetUser?.username || 'user',
     };
@@ -388,6 +385,7 @@ const App: React.FC = () => {
         // Add to local transactions to show immediately
         setTransactions(prev => [{ ...newTransaction, id: new Date().toISOString(), date: new Date().toISOString() }, ...prev]);
     }
+    return true;
   }, [assets, currentUser, allUsersForAdmin]);
 
   const handleSend = useCallback(async (recipientId: string, symbol: string, amount: number) => {
@@ -435,26 +433,42 @@ const App: React.FC = () => {
 
     if (senderUpdateError || recipientUpdateError) {
         console.error("Error updating balances:", { senderUpdateError, recipientUpdateError });
+        // NOTE: In a real app, you'd need a proper transaction to rollback the first update if the second fails.
         showToast("Transaction failed.", 'error');
         return;
     }
 
-    // 4. Log the transaction
+    // 4. Log transactions for both sender and receiver
     const recipientUser = sendableUsers.find(u => u.id === recipientId);
     const assetPrice = assets.find(a => a.symbol === symbol)?.price || 0;
+    const fromUser = currentUser.username || currentUser.first_name || 'user';
+    const toUser = recipientUser?.username || recipientUser?.first_name || 'user';
     
-    const newTransaction: Omit<Transaction, 'id' | 'date'> = {
+    const sendTransaction: Omit<Transaction, 'id' | 'date'> = {
         user_id: currentUser.id, // The sender is the one initiating
         type: 'send',
-        assetSymbol: symbol,
+        asset_symbol: symbol,
         amount: amount,
-        usdValue: amount * assetPrice,
-        from: currentUser.username || currentUser.first_name || 'user',
-        to: recipientUser?.username || recipientUser?.first_name || 'user',
+        usd_value: amount * assetPrice,
+        from: fromUser,
+        to: toUser,
     };
     
-    const { error: txError } = await supabase.from('transactions').insert(newTransaction);
-    if (txError) console.error("Error logging transaction", txError);
+    const receiveTransaction: Omit<Transaction, 'id' | 'date'> = {
+        user_id: recipientId,
+        type: 'receive',
+        asset_symbol: symbol,
+        amount: amount,
+        usd_value: amount * assetPrice,
+        from: fromUser,
+        to: toUser,
+    };
+    
+    const { error: sendTxError } = await supabase.from('transactions').insert(sendTransaction);
+    if (sendTxError) console.error("Error logging send transaction", sendTxError);
+    const { error: receiveTxError } = await supabase.from('transactions').insert(receiveTransaction);
+    if (receiveTxError) console.error("Error logging receive transaction", receiveTxError);
+
 
     // 5. Update local state for sender
     setAssets(currentAssets => {
@@ -465,10 +479,10 @@ const App: React.FC = () => {
             return asset;
         });
     });
-    const loggedTx = { ...newTransaction, id: new Date().toISOString(), date: new Date().toISOString() };
+    const loggedTx = { ...sendTransaction, id: new Date().toISOString(), date: new Date().toISOString() };
     setTransactions(prev => [loggedTx, ...prev]);
     
-    showToast(`Successfully sent ${amount} ${symbol} to ${recipientUser?.username || 'user'}.`, 'success');
+    showToast(`Successfully sent ${amount} ${symbol} to ${toUser}.`, 'success');
     handleNavigation('Wallet');
   }, [currentUser, assets, sendableUsers, handleNavigation]);
 
@@ -478,8 +492,12 @@ const App: React.FC = () => {
         return false;
     }
 
-    const assetToWithdraw = assets.find(a => a.symbol === symbol);
-    if (!assetToWithdraw || assetToWithdraw.balance < amount) {
+    const assetToWithdraw = assets.find(a => a.symbol.toUpperCase() === symbol.toUpperCase());
+    if (!assetToWithdraw) {
+        showToast(`You do not have a wallet for ${symbol}.`, 'error');
+        return false;
+    }
+    if (assetToWithdraw.balance < amount) {
         showToast("Insufficient funds.", 'error');
         return false;
     }
@@ -489,7 +507,7 @@ const App: React.FC = () => {
     const { error: updateError } = await supabase
         .from('wallets')
         .update({ balance: newBalance })
-        .match({ user_id: currentUser.id, asset_symbol: symbol });
+        .match({ user_id: currentUser.id, asset_symbol: assetToWithdraw.symbol });
 
     if (updateError) {
         console.error("Error updating balance for withdrawal:", updateError);
@@ -501,9 +519,9 @@ const App: React.FC = () => {
     const newTransaction: Omit<Transaction, 'id' | 'date'> = {
         user_id: currentUser.id,
         type: 'withdraw',
-        assetSymbol: symbol,
+        asset_symbol: assetToWithdraw.symbol,
         amount: amount,
-        usdValue: amount * assetPrice,
+        usd_value: amount * assetPrice,
         from: currentUser.username || currentUser.first_name || 'user',
         to: 'Withdrawal',
     };
@@ -513,7 +531,7 @@ const App: React.FC = () => {
 
     setAssets(currentAssets => 
         currentAssets.map(asset => 
-            asset.symbol === symbol 
+            asset.symbol === assetToWithdraw.symbol
             ? { ...asset, balance: newBalance, usdValue: newBalance * assetPrice }
             : asset
         )
@@ -569,6 +587,14 @@ const App: React.FC = () => {
         return <ActionView title="Send" onBack={() => handleNavigation('Wallet')} assets={assets} allUsers={sendableUsers} onSend={handleSend} />;
       case 'Withdraw':
         return <ActionView title="Withdraw" onBack={() => handleNavigation('Wallet')} assets={assets} onWithdraw={handleWithdraw} />;
+      case 'GeneralSettings':
+        return <GeneralSettingsView onBack={() => handleNavigation('Settings')} />;
+      case 'SecuritySettings':
+        return <SecuritySettingsView onBack={() => handleNavigation('Settings')} />;
+      case 'NetworkSettings':
+        return <NetworkSettingsView onBack={() => handleNavigation('Settings')} />;
+      case 'ContactsSettings':
+        return <ContactsSettingsView onBack={() => handleNavigation('Settings')} />;
       default:
         return <WalletView assets={assets} totalBalance={totalBalance} user={tg?.initDataUnsafe?.user} onAction={handleNavigation} balanceChange={balanceChange} />;
     }
@@ -582,7 +608,7 @@ const App: React.FC = () => {
             {renderContent()}
         </main>
         
-        {mainPages.includes(page) && (
+        {mainPages.includes(page as any) && (
             <div className="flex-shrink-0 z-20">
                 <BottomNav items={navItems} activeTab={page} setActiveTab={(tab) => handleNavigation(tab as Page)} />
             </div>
