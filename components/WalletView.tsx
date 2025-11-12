@@ -5,10 +5,12 @@ import ActionsRow from './ActionsRow';
 import StorePromotion from './StorePromotion';
 import Testimonials from './Testimonials'; // Import new component
 import AssetList from './AssetList'; // Import AssetList
-import type { Asset, Page } from '../types';
+import RecentActivity from './RecentActivity';
+import type { Asset, Page, Transaction } from '../types';
 
 interface WalletViewProps {
     assets: Asset[];
+    transactions: Transaction[];
     totalBalance: number;
     user?: any;
     onAction: (page: Page) => void;
@@ -18,7 +20,7 @@ interface WalletViewProps {
     };
 }
 
-const WalletView: React.FC<WalletViewProps> = ({ assets, totalBalance, user, onAction, balanceChange }) => {
+const WalletView: React.FC<WalletViewProps> = ({ assets, transactions, totalBalance, user, onAction, balanceChange }) => {
     return (
         <div className="relative">
             <div className="absolute inset-x-0 top-0 h-64 bg-gradient-to-b from-blue-900/40 to-transparent -z-0"></div>
@@ -32,11 +34,10 @@ const WalletView: React.FC<WalletViewProps> = ({ assets, totalBalance, user, onA
                 <ActionsRow onAction={onAction} />
             </div>
 
-            <div className="relative z-10 px-4 pb-24">
+            <div className="relative z-10 px-4 pb-24 space-y-6">
+                <RecentActivity transactions={transactions.slice(0, 3)} onNavigate={() => onAction('Activity')} />
                 <AssetList assets={assets} />
-                <div className="my-6">
-                  <StorePromotion onNavigate={() => onAction('Discover')} />
-                </div>
+                <StorePromotion onNavigate={() => onAction('Discover')} />
                 <Testimonials />
             </div>
         </div>

@@ -1,10 +1,10 @@
 import React from 'react';
-import { ArrowUpIcon, WithdrawIcon } from './Icons';
+import { ArrowUpIcon, WithdrawIcon, SwapIcon, ReceiveIcon } from './Icons';
 
-type ActionType = 'Send' | 'Withdraw';
+type ActionType = 'Send' | 'Withdraw' | 'Swap' | 'Receive';
 
 const ActionButton: React.FC<{ icon: React.ReactNode; label: string; onClick: () => void }> = ({ icon, label, onClick }) => (
-  <button onClick={onClick} className="flex flex-col items-center gap-2 text-white hover:text-blue-400 transition-colors">
+  <button onClick={onClick} className="flex flex-col items-center gap-2 text-white hover:text-blue-400 transition-colors w-20">
     <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center hover:bg-blue-600 transition-colors">
       {icon}
     </div>
@@ -20,6 +20,8 @@ const ActionsRow: React.FC<ActionsRowProps> = ({ onAction }) => {
   return (
     <div className="flex justify-around items-center py-4">
       <ActionButton icon={<ArrowUpIcon />} label="Send" onClick={() => onAction('Send')} />
+      <ActionButton icon={<ReceiveIcon />} label="Receive" onClick={() => onAction('Receive')} />
+      <ActionButton icon={<SwapIcon />} label="Swap" onClick={() => onAction('Swap')} />
       <ActionButton icon={<WithdrawIcon />} label="Withdraw" onClick={() => onAction('Withdraw')} />
     </div>
   );

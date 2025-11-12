@@ -13,6 +13,9 @@ import GeneralSettingsView from './components/GeneralSettingsView';
 import SecuritySettingsView from './components/SecuritySettingsView';
 import NetworkSettingsView from './components/NetworkSettingsView';
 import ContactsSettingsView from './components/ContactsSettingsView';
+import ReceiveView from './components/ReceiveView';
+import SwapView from './components/SwapView';
+import SecretPhraseView from './components/SecretPhraseView';
 import { GoogleGenAI, Type } from "@google/genai";
 import { supabase } from './lib/supabase';
 
@@ -84,11 +87,11 @@ async function fetchTopCryptos(symbols: string[]): Promise<DiscoverAsset[]> {
         return [
             { name: 'Bitcoin', symbol: 'BTC', price: 65500.23, priceChange24h: -2.45, marketCap: 1290000000000 },
             { name: 'Ethereum', symbol: 'ETH', price: 3489.15, priceChange24h: -3.18, marketCap: 419000000000 },
-            { name: 'Tether', symbol: 'USDT', price: 0.9998, priceChange24h: 0.01, marketCap: 110500000000 },
-            { name: 'Solana', symbol: 'SOL', price: 138.70, priceChange24h: -4.62, marketCap: 61500000000 },
-            { name: 'XRP', symbol: 'XRP', price: 0.495, priceChange24h: -1.75, marketCap: 27800000000 },
-            { name: 'Cardano', symbol: 'ADA', price: 0.401, priceChange24h: -3.05, marketCap: 14200000000 },
-            { name: 'Dogecoin', symbol: 'DOGE', price: 0.122, priceChange24h: -2.10, marketCap: 17500000000 },
+            { name: 'Tether', symbol: 'USDT', price: 0.9998, priceChange24h: 0.01, marketCap: 1105000000000 },
+            { name: 'Solana', symbol: 'SOL', price: 138.70, priceChange24h: -4.62, marketCap: 615000000000 },
+            { name: 'XRP', symbol: 'XRP', price: 0.495, priceChange24h: -1.75, marketCap: 278000000000 },
+            { name: 'Cardano', symbol: 'ADA', price: 0.401, priceChange24h: -3.05, marketCap: 142000000000 },
+            { name: 'Dogecoin', symbol: 'DOGE', price: 0.122, priceChange24h: -2.10, marketCap: 175000000000 },
         ];
     }
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -174,6 +177,9 @@ const App: React.FC = () => {
             setIsLoading(true);
             const mockAssetsWithBalance = baseAssets.map(asset => {
                 let balance = 0;
+                if (asset.symbol === 'ETH') balance = 1.5;
+                if (asset.symbol === 'BTC') balance = 0.05;
+                if (asset.symbol === 'USDT') balance = 1200;
                 return { ...asset, balance: parseFloat(balance.toFixed(4)), usdValue: 0 };
             });
             
@@ -181,6 +187,12 @@ const App: React.FC = () => {
             setAssets(updatedAssets);
             
             const mockTransactions: Transaction[] = [
+                 {
+                  id: 'tx3', user_id: 'mockuser', type: 'swap', asset_symbol: 'BTC',
+                  amount: 0.01, usd_value: 0.01 * (updatedAssets.find(a=>a.symbol === 'BTC')?.price || 68000),
+                  date: new Date(Date.now() - 86400000 * 1).toISOString(),
+                  from: 'BTC', to: 'ETH',
+                },
                 {
                   id: 'tx1', user_id: 'mockuser', type: 'receive', asset_symbol: 'ETH',
                   amount: 0.5, usd_value: 0.5 * (updatedAssets.find(a=>a.symbol === 'ETH')?.price || 3000),
@@ -616,7 +628,7 @@ const App: React.FC = () => {
 
     switch (page) {
       case 'Wallet':
-        return <WalletView assets={assets} totalBalance={totalBalance} user={tg?.initDataUnsafe?.user} onAction={handleNavigation} balanceChange={balanceChange} />;
+        return <WalletView assets={assets} transactions={transactions} totalBalance={totalBalance} user={tg?.initDataUnsafe?.user} onAction={handleNavigation} balanceChange={balanceChange} />;
       case 'Discover':
         return <DiscoverView assets={discoverAssets} isLoading={isDiscoverLoading} />;
       case 'Activity':
@@ -629,16 +641,22 @@ const App: React.FC = () => {
         return <ActionView title="Send" onBack={() => handleNavigation('Wallet')} assets={assets} allUsers={sendableUsers} onSend={handleSend} isAdmin={isAdmin} />;
       case 'Withdraw':
         return <ActionView title="Withdraw" onBack={() => handleNavigation('Wallet')} assets={assets} onWithdraw={handleWithdraw} />;
+       case 'Receive':
+        return <ReceiveView onBack={() => handleNavigation('Wallet')} showToast={showToast} />;
+      case 'Swap':
+        return <SwapView onBack={() => handleNavigation('Wallet')} assets={assets} showToast={showToast} />;
       case 'GeneralSettings':
         return <GeneralSettingsView onBack={() => handleNavigation('Settings')} />;
       case 'SecuritySettings':
-        return <SecuritySettingsView onBack={() => handleNavigation('Settings')} />;
+        return <SecuritySettingsView onBack={() => handleNavigation('Settings')} onNavigate={handleNavigation} />;
+       case 'SecretPhraseView':
+        return <SecretPhraseView onBack={() => handleNavigation('SecuritySettings')} />;
       case 'NetworkSettings':
         return <NetworkSettingsView onBack={() => handleNavigation('Settings')} />;
       case 'ContactsSettings':
         return <ContactsSettingsView onBack={() => handleNavigation('Settings')} />;
       default:
-        return <WalletView assets={assets} totalBalance={totalBalance} user={tg?.initDataUnsafe?.user} onAction={handleNavigation} balanceChange={balanceChange} />;
+        return <WalletView assets={assets} transactions={transactions} totalBalance={totalBalance} user={tg?.initDataUnsafe?.user} onAction={handleNavigation} balanceChange={balanceChange} />;
     }
   };
 

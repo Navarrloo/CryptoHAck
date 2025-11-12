@@ -1,6 +1,6 @@
 import type React from 'react';
 
-export type Page = 'Wallet' | 'Discover' | 'Activity' | 'Settings' | 'Send' | 'Admin' | 'Withdraw' | 'GeneralSettings' | 'SecuritySettings' | 'NetworkSettings' | 'ContactsSettings';
+export type Page = 'Wallet' | 'Discover' | 'Activity' | 'Settings' | 'Send' | 'Admin' | 'Withdraw' | 'GeneralSettings' | 'SecuritySettings' | 'NetworkSettings' | 'ContactsSettings' | 'Receive' | 'Swap' | 'SecretPhraseView';
 
 export interface Asset {
   id: string;
