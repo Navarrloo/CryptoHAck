@@ -6,15 +6,29 @@ const StarIcon: React.FC<{ filled?: boolean }> = ({ filled = true }) => (
     </svg>
 );
 
-const TestimonialCard: React.FC<{ name: string, handle: string, quote: string }> = ({ name, handle, quote }) => (
+const colors = [
+    'bg-gradient-to-br from-indigo-500 to-purple-600',
+    'bg-gradient-to-br from-green-400 to-blue-500',
+    'bg-gradient-to-br from-yellow-400 to-orange-500',
+    'bg-gradient-to-br from-pink-500 to-red-500',
+];
+
+const Avatar: React.FC<{ name: string; index: number }> = ({ name, index }) => {
+    const initial = name.charAt(0).toUpperCase();
+    const color = colors[index % colors.length];
+    return (
+        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${color}`}>
+            <span className="text-lg font-bold text-white">{initial}</span>
+        </div>
+    );
+};
+
+const TestimonialCard: React.FC<{ name: string, quote: string, index: number }> = ({ name, quote, index }) => (
     <div className="bg-gray-800/50 p-4 rounded-xl space-y-3 w-64 flex-shrink-0">
         <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-lg">
-                {name.charAt(0)}
-            </div>
+            <Avatar name={name} index={index} />
             <div>
                 <p className="font-semibold text-white">{name}</p>
-                <p className="text-sm text-gray-400">{handle}</p>
             </div>
         </div>
         <div className="flex">
@@ -27,17 +41,17 @@ const TestimonialCard: React.FC<{ name: string, handle: string, quote: string }>
 
 const Testimonials: React.FC = () => {
     const reviews = [
-        { name: 'Alex', handle: '@alex_crypto', quote: 'The best wallet I have ever used. Fast, secure, and intuitive. Highly recommended!' },
-        { name: 'Maria', handle: '@blockchain_gal', quote: 'Finally, a wallet that understands what users need. The UI is just fantastic.' },
-        { name: 'John Doe', handle: '@johndoe', quote: 'Seamless experience from start to finish. Sending crypto has never been easier.' },
-        { name: 'CryptoKing', handle: '@king', quote: 'Switched from another big wallet and not looking back. This is the future.' },
+        { name: 'oexex', quote: 'Finally, a wallet that\'s both secure and easy to use. Highly recommend for any serious crypto holder.' },
+        { name: 'NAVARRLO', quote: 'The dApp integration is smooth and the interface is super clean. My go-to wallet for all things DeFi.' },
+        { name: 'SanderCryp', quote: 'Love how this works inside Telegram. Fast, reliable, and just what the ecosystem needed.' },
+        { name: 'Solanama', quote: 'Super fast transactions, perfect for trading on Solana. Hasn\'t let me down once.' },
     ];
     return (
         <div className="py-6">
             <h3 className="text-lg font-bold text-white px-2 mb-4">What Our Users Say</h3>
             <div className="flex gap-4 overflow-x-auto pb-4 -mx-4 px-4">
-                 {reviews.map(review => (
-                    <TestimonialCard key={review.handle} {...review} />
+                 {reviews.map((review, index) => (
+                    <TestimonialCard key={review.name} {...review} index={index} />
                  ))}
             </div>
         </div>

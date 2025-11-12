@@ -648,7 +648,7 @@ const App: React.FC = () => {
     <div className="bg-[#0d1117] min-h-screen font-sans text-white flex justify-center items-start">
       <div className="w-full max-w-md h-screen flex flex-col">
         {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
-        <main className="flex-1 w-full relative overflow-hidden">
+        <main className="flex-1 w-full relative overflow-y-auto">
             {renderContent()}
         </main>
         

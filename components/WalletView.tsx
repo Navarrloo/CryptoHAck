@@ -20,9 +20,10 @@ interface WalletViewProps {
 
 const WalletView: React.FC<WalletViewProps> = ({ assets, totalBalance, user, onAction, balanceChange }) => {
     return (
-        <div className="absolute inset-0 flex flex-col">
+        <div className="relative">
             <div className="absolute inset-x-0 top-0 h-64 bg-gradient-to-b from-blue-900/40 to-transparent -z-0"></div>
-            <div className="relative z-10 p-4 pt-6 space-y-4 flex-shrink-0">
+            
+            <div className="relative z-10 p-4 pt-6 space-y-4">
                 <Header network="Ethereum Mainnet" user={user} />
                 <div className="text-center text-gray-300 text-sm py-2 px-4 bg-gray-800/50 rounded-lg">
                     Здравствуйте! Мы второй по популярности криптокошелек в телеграме.
@@ -30,7 +31,8 @@ const WalletView: React.FC<WalletViewProps> = ({ assets, totalBalance, user, onA
                 <BalanceCard balance={totalBalance} balanceChange={balanceChange} />
                 <ActionsRow onAction={onAction} />
             </div>
-            <div className="flex-grow overflow-y-auto px-4 pb-4 z-10 min-h-0">
+
+            <div className="relative z-10 px-4 pb-24">
                 <AssetList assets={assets} />
                 <div className="my-6">
                   <StorePromotion onNavigate={() => onAction('Discover')} />
