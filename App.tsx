@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import BottomNav from './components/BottomNav';
 import type { Asset, Transaction, DBUser, DiscoverAsset, Page } from './types';
-import { BtcIcon, EthereumIcon, TetherIcon, WalletIcon, CompassIcon, ClockIcon, SettingsIcon, SolanaIcon, XrpIcon, CardanoIcon, DogecoinIcon } from './components/Icons';
+import { BtcIcon, EthereumIcon, TetherIcon, WalletIcon, CompassIcon, ClockIcon, SettingsIcon, SolanaIcon, XrpIcon, CardanoIcon, DogecoinIcon, NotcoinIcon } from './components/Icons';
 import WalletView from './components/WalletView';
 import ActionView from './components/ActionView';
 import SettingsView from './components/SettingsView';
@@ -33,6 +33,7 @@ const baseAssets: Omit<Asset, 'balance' | 'usdValue'>[] = [
   { id: 'xrp', name: 'XRP', symbol: 'XRP', icon: <XrpIcon /> },
   { id: 'ada', name: 'Cardano', symbol: 'ADA', icon: <CardanoIcon /> },
   { id: 'doge', name: 'Dogecoin', symbol: 'DOGE', icon: <DogecoinIcon /> },
+  { id: 'not', name: 'Notcoin', symbol: 'NOT', icon: <NotcoinIcon /> },
 ];
 
 
@@ -40,7 +41,7 @@ async function fetchAssetPrices(symbols: string[]): Promise<Record<string, numbe
     if (!process.env.API_KEY) {
         console.warn("API_KEY is not set. Returning mock prices.");
         return {
-            'BTC': 68123.45, 'ETH': 3789.12, 'USDT': 1.0, 'SOL': 165.43, 'XRP': 0.52, 'ADA': 0.45, 'DOGE': 0.16
+            'BTC': 68123.45, 'ETH': 3789.12, 'USDT': 1.0, 'SOL': 165.43, 'XRP': 0.52, 'ADA': 0.45, 'DOGE': 0.16, 'NOT': 0.015
         };
     }
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -89,6 +90,7 @@ async function fetchTopCryptos(symbols: string[]): Promise<DiscoverAsset[]> {
             { name: 'XRP', symbol: 'XRP', price: 0.52, priceChange24h: -1.1, marketCap: 28000000000 },
             { name: 'Cardano', symbol: 'ADA', price: 0.45, priceChange24h: 0.8, marketCap: 16000000000 },
             { name: 'Dogecoin', symbol: 'DOGE', price: 0.16, priceChange24h: 5.5, marketCap: 23000000000 },
+            { name: 'Notcoin', symbol: 'NOT', price: 0.015, priceChange24h: -2.1, marketCap: 1500000000 },
         ];
     }
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
