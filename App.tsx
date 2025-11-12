@@ -33,7 +33,6 @@ const baseAssets: Omit<Asset, 'balance' | 'usdValue'>[] = [
   { id: 'xrp', name: 'XRP', symbol: 'XRP', icon: <XrpIcon /> },
   { id: 'ada', name: 'Cardano', symbol: 'ADA', icon: <CardanoIcon /> },
   { id: 'doge', name: 'Dogecoin', symbol: 'DOGE', icon: <DogecoinIcon /> },
-  { id: 'not', name: 'Notcoin', symbol: 'NOT', icon: <NotcoinIcon /> },
 ];
 
 
@@ -83,14 +82,13 @@ async function fetchTopCryptos(symbols: string[]): Promise<DiscoverAsset[]> {
     if (!process.env.API_KEY) {
         console.warn("API_KEY is not set. Returning mock discovery data.");
         return [
-            { name: 'Bitcoin', symbol: 'BTC', price: 68123.45, priceChange24h: 1.5, marketCap: 1340000000000 },
-            { name: 'Ethereum', symbol: 'ETH', price: 3789.12, priceChange24h: -0.5, marketCap: 455000000000 },
-            { name: 'Tether', symbol: 'USDT', price: 1.0, priceChange24h: 0.0, marketCap: 112000000000 },
-            { name: 'Solana', symbol: 'SOL', price: 165.43, priceChange24h: 3.2, marketCap: 76000000000 },
-            { name: 'XRP', symbol: 'XRP', price: 0.52, priceChange24h: -1.1, marketCap: 28000000000 },
-            { name: 'Cardano', symbol: 'ADA', price: 0.45, priceChange24h: 0.8, marketCap: 16000000000 },
-            { name: 'Dogecoin', symbol: 'DOGE', price: 0.16, priceChange24h: 5.5, marketCap: 23000000000 },
-            { name: 'Notcoin', symbol: 'NOT', price: 0.015, priceChange24h: -2.1, marketCap: 1500000000 },
+            { name: 'Bitcoin', symbol: 'BTC', price: 65500.23, priceChange24h: -2.45, marketCap: 1290000000000 },
+            { name: 'Ethereum', symbol: 'ETH', price: 3489.15, priceChange24h: -3.18, marketCap: 419000000000 },
+            { name: 'Tether', symbol: 'USDT', price: 0.9998, priceChange24h: 0.01, marketCap: 110500000000 },
+            { name: 'Solana', symbol: 'SOL', price: 138.70, priceChange24h: -4.62, marketCap: 61500000000 },
+            { name: 'XRP', symbol: 'XRP', price: 0.495, priceChange24h: -1.75, marketCap: 27800000000 },
+            { name: 'Cardano', symbol: 'ADA', price: 0.401, priceChange24h: -3.05, marketCap: 14200000000 },
+            { name: 'Dogecoin', symbol: 'DOGE', price: 0.122, priceChange24h: -2.10, marketCap: 17500000000 },
         ];
     }
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });

@@ -1,11 +1,7 @@
 import React from 'react';
 
 export const BtcIcon: React.FC = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" className="w-9 h-9" viewBox="0 0 32 32" fill="none">
-        <circle cx="16" cy="16" r="16" fill="#F7931A"/>
-        <path fillRule="evenodd" clipRule="evenodd" d="M14.216 8.889h3.556v3.555h-3.556V8.889zM14.216 19.556h3.556V23.11h-3.556v-3.554z" fill="#fff"/>
-        <path d="M18.882 13.333c.833-.623 1.333-1.645 1.333-2.778 0-2.167-1.488-3.555-4-3.555h-5.11v7.111h5.333c1.956 0 3.111-.71 3.111-2.222.001-.889-.556-1.556-1.667-2.045.001.037.001.074.001.11zm-4.666-2.222h2.222c.978 0 1.556.444 1.556 1.111s-.578 1.11-1.556 1.11h-2.222v-2.221zM19.782 16c.889.533 1.556 1.467 1.556 2.667 0 2.222-1.6 3.555-4.222 3.555h-5.556v-7.111h5.778c2.444 0 3.555.8 3.555 2.445 0 .978-.444 1.689-1.111 2.222l-.001-.222zM15.116 19.556h2.667c1.111 0 1.778-.533 1.778-1.334s-.667-1.333-1.778-1.333h-2.667v2.667z" fill="#fff"/>
-    </svg>
+    <img src="https://i.ibb.co/whb0XCtD/bitcoin-btc-logo.png" alt="Bitcoin logo" className="w-9 h-9" />
 );
 export const EthereumIcon: React.FC = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="w-9 h-9" viewBox="0 0 48 48">
@@ -21,11 +17,7 @@ export const EthereumIcon: React.FC = () => (
     </svg>
 );
 export const TetherIcon: React.FC = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" className="w-9 h-9" viewBox="0 0 32 32" fill="none">
-        <circle cx="16" cy="16" r="16" fill="#50AF95"/>
-        <path d="M16 25C20.9706 25 25 20.9706 25 16C25 11.0294 20.9706 7 16 7C11.0294 7 7 11.0294 7 16C7 20.9706 11.0294 25 16 25Z" fill="white"/>
-        <path d="M15.42 21V13.8H11V11.7H21V13.8H16.58V21H15.42Z" fill="#50AF95"/>
-    </svg>
+    <img src="https://i.ibb.co/Mxr6gyFq/tether-usdt-logo.png" alt="Tether logo" className="w-9 h-9" />
 );
 export const SolanaIcon: React.FC = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="w-9 h-9" viewBox="0 0 108 108" fill="none">

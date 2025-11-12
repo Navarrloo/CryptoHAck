@@ -36,12 +36,12 @@ const formatMarketCap = (value: number): string => {
 const DiscoverAssetItem: React.FC<{ asset: DiscoverAsset }> = ({ asset }) => {
     const isPositive = asset.priceChange24h >= 0;
     return (
-        <div className="flex items-center p-3 rounded-xl hover:bg-gray-800/60 cursor-pointer transition-colors">
+        <div className="flex items-center py-3 px-2 hover:bg-gray-800/60 cursor-pointer transition-colors">
             <div className="w-10 h-10 mr-4 flex items-center justify-center">
                 {getIconBySymbol(asset.symbol)}
             </div>
             <div className="flex-grow">
-                <p className="font-semibold text-white">{asset.name}</p>
+                <p className="text-white">{asset.name}</p>
                 <p className="text-sm text-gray-400">{asset.symbol}</p>
             </div>
              <div className="text-right flex-shrink-0 w-28">
@@ -75,7 +75,7 @@ const DiscoverView: React.FC<DiscoverViewProps> = ({ assets, isLoading }) => {
             <div className="w-16 h-16 border-4 border-dashed rounded-full animate-spin border-blue-500"></div>
           </div>
         ) : assets.length > 0 ? (
-          <div className="space-y-2">
+          <div className="divide-y divide-gray-800">
             {assets.map(asset => (
               <DiscoverAssetItem key={asset.symbol} asset={asset} />
             ))}
